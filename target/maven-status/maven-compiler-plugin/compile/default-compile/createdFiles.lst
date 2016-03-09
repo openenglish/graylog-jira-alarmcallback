@@ -1,0 +1,9 @@
+com/bidorbuy/graylog/jira/callback/JiraAlarmCallback$1.class
+com/bidorbuy/graylog/jira/callback/JiraAlarmCallback.class
+com/bidorbuy/graylog/jira/JiraClient$JiraClientException.class
+com/bidorbuy/graylog/jira/JiraPlugin.class
+com/bidorbuy/graylog/jira/JiraClient.class
+com/bidorbuy/graylog/jira/JiraPluginModule.class
+com/bidorbuy/graylog/jira/JiraPluginBase.class
+com/bidorbuy/graylog/jira/JiraPluginMetadata.class
+com/bidorbuy/graylog/jira/JiraIssue.class
