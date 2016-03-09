@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Graylog Plugin for JIRA with templating by magicdude4eva</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">Graylog Plugin for JIRA with templating</h1>
+        <p class="header">Graylog plugin for JIRA with templating of JIRA issue title and JIRA issue message</p>
+
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/magicdude4eva/graylog-jira-alarmcallback/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/magicdude4eva/graylog-jira-alarmcallback/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/magicdude4eva/graylog-jira-alarmcallback">View On GitHub</a></li>
+        </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/magicdude4eva">magicdude4eva</a></p>
+
+
+      </header>
+      <section>
+        <h1>
+<a id="graylog-plugin-for-jira-with-templating" class="anchor" href="#graylog-plugin-for-jira-with-templating" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Graylog Plugin for JIRA with templating</h1>
+
+<p>A Graylog alarm callback plugin that integrates <a href="https://www.graylog.org/">Graylog</a> into <a href="https://www.atlassian.com/software/jira/">JIRA</a>.</p>
+
+<h2>
+<a id="main-features" class="anchor" href="#main-features" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Main features</h2>
+
+<ul>
+<li>Templating in JIRA issue title and JIRA message via place holders</li>
+<li>Embed a MD5 hash into the JIRA issue to prevent duplicate JIRA issues</li>
+</ul>
+
+<p><img src="https://raw.githubusercontent.com/magicdude4eva/graylog-jira-alarmcallback/master/screenshot-alert-config.png" alt="Graylog JIRA plugin"></p>
+
+<h1>
+<a id="pre-requisites-for-java-exception-logging" class="anchor" href="#pre-requisites-for-java-exception-logging" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Pre-requisites for Java exception logging</h1>
+
+<p>If you use an application server such as Tomcat, we suggest that you use <a href="https://www.elastic.co/products/logstash">Logstash</a> to pre-process your log-files and ship the log-records via Gelf output into Graylog.</p>
+
+<p>A very reliable way of processing Tomcat logs can be achieved by:</p>
+
+<ul>
+<li>Using Logstash with <code>sincedb_path</code> and <code>sincedb_write_interval</code> </li>
+<li>Use Log4J to consistently format log records to consist of <code>%{LOGLEVEL} %{timestamp} %{threadname} %{MESSAGE}</code>
+</li>
+<li>Use a multi-line codec to extract exception messages</li>
+<li>Use a series of grok patterns to retag multiline messages as "exception" you want a Graylog stream to process - i.e. <code>match =&gt; { message =&gt; [ "(^.+Exception: .+)|(^.+Stacktrace:.+)" ] }</code>
+</li>
+<li>Discard and sanitize messages in Logstash - this will improve storage, filtering and stream processing</li>
+</ul>
+
+<p>With the above you can easily setup a stream where your condition is as simple as "<code>type must match exactly tomcat AND tags must match exactly exception</code>"</p>
+
+<h2>
+<a id="installation-of-plugin" class="anchor" href="#installation-of-plugin" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation of plugin</h2>
+
+<p>This plugin has been tested with Graylog v1.3.3 and JIRA v7.0.10.</p>
+
+<p>Download the <a href="https://github.com/magicdude4eva/graylog-jira-alarmcallback/releases">latest release</a> and copy the <code>.jar</code> file into your Graylog plugin directory (default is in <code>/usr/share/graylog-server/plugin</code>).
+If you are unsure about the plugin location, do a <code>grep -i plugin_dir /etc/graylog/server/server.conf</code>.</p>
+
+<p>Restart Graylog via <code>systemctl restart graylog-server</code></p>
+
+<h2>
+<a id="configuration" class="anchor" href="#configuration" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Configuration</h2>
+
+<h3>
+<a id="configure-the-stream-alert" class="anchor" href="#configure-the-stream-alert" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Configure the stream alert</h3>
+
+<p><img src="https://raw.githubusercontent.com/magicdude4eva/graylog-jira-alarmcallback/master/screenshot-plugin-overview.png" alt="Graylog callback configuration"></p>
+
+<h3>
+<a id="callback-options" class="anchor" href="#callback-options" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Callback options</h3>
+
+<ul>
+<li>
+<strong>JIRA Instance URL</strong>: The URL to your JIRA server</li>
+<li>
+<strong>Project Key</strong>: The project key under which the issue will be created in JIRA</li>
+<li>
+<strong>Issue Type</strong>: The JIRA issue type (defaults to <code>Bug</code>). Ensure that the issue type matches your project settings</li>
+<li>
+<strong>Graylog URL</strong>: The URL to the Graylog web-interface. The URL is used to generate links within JIRA</li>
+<li>
+<strong>Issue Priority</strong>: The JIRA issue priority (defaults to <code>Minor</code>). Ensure that the issue priority matches your project settings</li>
+<li>
+<strong>Labels</strong>: Comma-separated list of labels to add to the issue</li>
+<li>
+<strong>Message template</strong>: Message template used to create a JIRA issue. The message template uses JIRA Text Formatting Notation. Line-breaks can be added as "<code>\n</code>". The message-template also accepts <code>[PLACEHOLDERS]</code>
+
+<ul>
+<li>
+<strong>[STREAM_TITLE]</strong>: Title of the stream</li>
+<li>
+<strong>[STREAM_URL]</strong>: URL to the stream</li>
+<li>
+<strong>[STREAM_RULES]</strong>: Stream rules triggered</li>
+<li>
+<strong>[ALERT_TRIGGERED_AT]</strong>: Timestamp when alert was triggered</li>
+<li>
+<strong>[ALERT_TRIGGERED_CONDITION]</strong>: Conditions triggering the alert</li>
+<li>
+<strong>[LAST_MESSAGE.SOURCE]</strong>: If a message is present, the placeholder will be replaced with the source origin of the message</li>
+<li>
+<strong>[LAST_MESSAGE.MESSAGE]</strong>: The actual message</li>
+<li>
+<strong>[LAST_MESSAGE.FIELDNAME]</strong>: Replaces with any field in the logged record. i.e. "<code>[LAST_MESSAGE.PATH]</code>" would display the full logpath where the message originated from.</li>
+</ul>
+</li>
+<li>
+<strong>JIRA task title</strong>: Sets the title of the JIRA task. Can include <code>[MESSAGE_REGEX]</code>(see <strong>Message regex</strong>). Can also include any field via <code>[LAST_MESSAGE.FIELDNAME]</code>
+</li>
+<li>
+<strong>Message regex</strong>: A regular expression to extract a portion of the message. This is used to extract an exception message as well as to generate a MD5 hash to identify duplicate JIRA issues.</li>
+</ul>
+
+<h3>
+<a id="callback-examples" class="anchor" href="#callback-examples" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Callback examples</h3>
+
+<p>If a log-message contains:</p>
+
+<pre><code>H/M 07/03/16 15:37:23 tcbobe-56 OrderStructureIO java.sql.SQLIntegrityConstraintViolationException: ORA-00001: unique constraint (PRODZA.ORDERS_PK) violated
+at oracle.jdbc.driver.T4CTTIoer.processError(T4CTTIoer.java:450)
+at oracle.jdbc.driver.T4CTTIoer.processError(T4CTTIoer.java:399)
+at oracle.jdbc.driver.T4C8Oall.processError(T4C8Oall.java:1059)
+at oracle.jdbc.driver.T4CTTIfun.receive(T4CTTIfun.java:522)
+at oracle.jdbc.driver.T4CTTIfun.doRPC(T4CTTIfun.java:257)
+at oracle.jdbc.driver.T4C8Oall.doOALL(T4C8Oall.java:587)
+at oracle.jdbc.driver.T4CPreparedStatement.doOall8(T4CPreparedStatement.java:225)
+at oracle.jdbc.driver.T4CPreparedStatement.doOall8(T4CPreparedStatement.java:53)
+at oracle.jdbc.driver.T4CPreparedStatement.executeForRows(T4CPreparedStatement.java:943)
+at oracle.jdbc.driver.OracleStatement.doExecuteWithTimeout(OracleStatement.java:1150)
+at oracle.jdbc.driver.OraclePreparedStatement.executeInternal(OraclePreparedStatement.java:4798)
+at oracle.jdbc.driver.OraclePreparedStatement.executeUpdate(OraclePreparedStatement.java:4875)
+at oracle.jdbc.driver.OraclePreparedStatementWrapper.executeUpdate(OraclePreparedStatementWrapper.java:1361)
+</code></pre>
+
+<p>With the following settings:</p>
+
+<ul>
+<li>
+<strong>Message regex</strong> = <code>([a-zA-Z_.]+(?!.*Exception): .+)</code>
+</li>
+<li>
+<strong>JIRA task title</strong> = <code>[Graylog-[LAST_MESSAGE.SOURCE]] [MESSAGE_REGEX]</code> </li>
+<li>
+<strong>Message template</strong> = <code>*Alert triggered at:* \n [ALERT_TRIGGERED_AT]\n\n *Stream URL:* \n [STREAM_URL]\n\n*Source:* \n [LAST_MESSAGE.SOURCE]\n\n *Message:* \n [LAST_MESSAGE.MESSAGE]\n\n</code>
+</li>
+</ul>
+
+<p>The JIRA issue will be logged follows:
+<img src="https://raw.githubusercontent.com/magicdude4eva/graylog-jira-alarmcallback/master/screenshot-jira.png" alt="JIRA issue"></p>
+
+<h2>
+<a id="copyright" class="anchor" href="#copyright" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Copyright</h2>
+
+<p>Original idea from <a href="https://github.com/tjackiw/graylog-plugin-jira">https://github.com/tjackiw/graylog-plugin-jira</a></p>
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>
