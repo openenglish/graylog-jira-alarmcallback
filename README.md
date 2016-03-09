@@ -1,6 +1,10 @@
 # Graylog Plugin for JIRA with templating
 
-An alarm callback plugin that integrates [Graylog](https://www.graylog.org/) into [JIRA](https://www.atlassian.com/software/jira/).
+A Graylog alarm callback plugin that integrates [Graylog](https://www.graylog.org/) into [JIRA](https://www.atlassian.com/software/jira/).
+
+## Main features
+* Templating in JIRA issue title and JIRA message via place holders
+* Embed a MD5 hash into the JIRA issue to prevent duplicate JIRA issues
 
 # Pre-requisites for Java exception logging
 -------------------------------------------

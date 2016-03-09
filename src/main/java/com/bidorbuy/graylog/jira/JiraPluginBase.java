@@ -1,7 +1,9 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2016 Gerd Naschenweng
+ * Copyright (c) 2016 Gerd Naschenweng / bidorbuy.co.za
+ * 
+ * Original idea from https://github.com/tjackiw/graylog-plugin-jira
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -63,7 +65,7 @@ public class JiraPluginBase {
   public static final String CK_TITLE_TEMPLATE   = "title_template";
   public static final String CK_MESSAGE_REGEX    = "message_regex";
   
-  // The default template for Jira messages
+  // The default template for JIRA messages
   private static final String CONST_JIRA_MESSAGE_TEMPLATE = "*Stream title:* \n [STREAM_TITLE]\n\n"
       + " *Stream URL:* \n [STREAM_URL]\n\n"
       + " *Stream rules:* \n [STREAM_RULES]\n\n"
@@ -90,7 +92,7 @@ public class JiraPluginBase {
     
     configurationRequest.addField (new TextField (
         CK_PASSWORD, "Password", "", "Password to login to JIRA.",
-        ConfigurationField.Optional.NOT_OPTIONAL));
+        ConfigurationField.Optional.NOT_OPTIONAL, TextField.Attribute.IS_PASSWORD));
     
     configurationRequest.addField (new TextField (
         CK_PROJECT_KEY, "Project Key", "", "Project under which the issue will be created.",

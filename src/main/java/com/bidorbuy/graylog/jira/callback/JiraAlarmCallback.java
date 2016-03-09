@@ -1,7 +1,9 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2016 Gerd Naschenweng
+ * Copyright (c) 2016 Gerd Naschenweng / bidorbuy.co.za
+ * 
+ * Original idea from https://github.com/tjackiw/graylog-plugin-jira
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +28,7 @@
 package com.bidorbuy.graylog.jira.callback;
 
 import com.google.common.collect.Maps;
+import com.google.common.collect.ImmutableList;
 import com.bidorbuy.graylog.jira.*;
 import org.graylog2.plugin.alarms.AlertCondition;
 import org.graylog2.plugin.alarms.callbacks.AlarmCallback;
@@ -36,10 +39,13 @@ import org.graylog2.plugin.configuration.ConfigurationException;
 import org.graylog2.plugin.configuration.ConfigurationRequest;
 import org.graylog2.plugin.streams.Stream;
 
+import java.util.List;
 import java.util.Map;
 
 public class JiraAlarmCallback extends JiraPluginBase implements AlarmCallback {
     private Configuration configuration;
+    
+    private static final List<String> SENSITIVE_CONFIGURATION_KEYS = ImmutableList.of(CK_PASSWORD);
 
     @Override
     public void initialize(final Configuration config) throws AlarmCallbackConfigurationException {
@@ -83,13 +89,16 @@ public class JiraAlarmCallback extends JiraPluginBase implements AlarmCallback {
         return Maps.transformEntries(configuration.getSource(), new Maps.EntryTransformer<String, Object, Object>() {
             @Override
             public Object transformEntry(String key, Object value) {
-                if (CK_PASSWORD.equals(key)) {
+                if (SENSITIVE_CONFIGURATION_KEYS.contains(key)) {
                     return "****";
                 }
                 return value;
             }
         });
     }
+
+    
+    
 
     @Override
     // Never actually called by graylog-server
