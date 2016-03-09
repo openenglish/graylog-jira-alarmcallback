@@ -6,14 +6,13 @@ A Graylog alarm callback plugin that integrates [Graylog](https://www.graylog.or
 * Templating in JIRA issue title and JIRA message via place holders
 * Embed a MD5 hash into the JIRA issue to prevent duplicate JIRA issues
 
-![Graylog JIRA plugin](https://github.com/magicdude4eva/graylog-jira-alarmcallback/blob/master/screenshot-plugin-overview.png)
+![Graylog JIRA plugin](https://raw.githubusercontent.com/magicdude4eva/graylog-jira-alarmcallback/master/screenshot-alert-config.png)
 
 # Pre-requisites for Java exception logging
--------------------------------------------
 If you use an application server such as Tomcat, we suggest that you use [Logstash](https://www.elastic.co/products/logstash) to pre-process your log-files and ship the log-records via Gelf output into Graylog.
 
 A very reliable way of processing Tomcat logs can be achieved by:
-
+ 
 * Using Logstash with `sincedb_path` and `sincedb_write_interval` 
 * Use Log4J to consistently format log records to consist of `%{LOGLEVEL} %{timestamp} %{threadname} %{MESSAGE}`
 * Use a multi-line codec to extract exception messages
@@ -36,7 +35,7 @@ Configuration
 -------------
 
 ### Configure the stream alert
-![Graylog callback configuration](https://github.com/magicdude4eva/graylog-jira-alarmcallback/blob/master/screenshot-alert-config.png)
+![Graylog callback configuration](https://raw.githubusercontent.com/magicdude4eva/graylog-jira-alarmcallback/master/screenshot-plugin-overview.png)
 
 ### Callback options
 * __JIRA Instance URL__: The URL to your JIRA server
@@ -84,7 +83,7 @@ With the following settings:
 * __Message template__ = `*Alert triggered at:* \n [ALERT_TRIGGERED_AT]\n\n *Stream URL:* \n [STREAM_URL]\n\n*Source:* \n [LAST_MESSAGE.SOURCE]\n\n *Message:* \n [LAST_MESSAGE.MESSAGE]\n\n`
 
 The JIRA issue will be logged follows:
-![JIRA issue](https://github.com/magicdude4eva/graylog-jira-alarmcallback/blob/master/screenshot-jira.png)
+![JIRA issue](https://raw.githubusercontent.com/magicdude4eva/graylog-jira-alarmcallback/master/screenshot-jira.png)
  
 ## Copyright
 
