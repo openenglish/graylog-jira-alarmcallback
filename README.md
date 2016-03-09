@@ -21,12 +21,11 @@ A very reliable way of processing Tomcat logs can be achieved by:
 With the above you can easily setup a stream where your condition is as simple as "`type must match exactly tomcat AND tags must match exactly exception`"
 
 
-
 Installation of plugin
 ----------------------
 This plugin has been tested with Graylog v1.3.3 and JIRA v7.0.10.
 
-Download the [latest release](https://github.com/magicdude4eva/XXXX/releases) and copy the `.jar` file into your Graylog plugin directory (default is in `/usr/share/graylog-server/plugin`).
+Download the [latest release](https://github.com/magicdude4eva/graylog-jira-alarmcallback/releases) and copy the `.jar` file into your Graylog plugin directory (default is in `/usr/share/graylog-server/plugin`).
 If you are unsure about the plugin location, do a `grep -i plugin_dir /etc/graylog/server/server.conf`.
 
 Restart Graylog via `systemctl restart graylog-server`
@@ -34,11 +33,8 @@ Restart Graylog via `systemctl restart graylog-server`
 Configuration
 -------------
 
-### Create a "JIRA Alarm Callback" in Graylog and configure your alert conditions:
-![Graylog alert conditions](./screenshot-alert-conditions.png)
-
-### Configure the callback configuration
-![Graylog callback configuration](./screenshot-alert.png)
+### Configure the stream alert
+![Graylog callback configuration](./screenshot-alert-config.png)
 
 ### Callback options
 * __JIRA Instance URL__: The URL to your JIRA server
