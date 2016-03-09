@@ -82,7 +82,7 @@ With the following settings:
 * __JIRA task title__ = `[Graylog-[LAST_MESSAGE.SOURCE]] [MESSAGE_REGEX]` 
 * __Message template__ = `*Alert triggered at:* \n [ALERT_TRIGGERED_AT]\n\n *Stream URL:* \n [STREAM_URL]\n\n*Source:* \n [LAST_MESSAGE.SOURCE]\n\n *Message:* \n [LAST_MESSAGE.MESSAGE]\n\n`
 
-The JIRA issue will be logged follows:
+The JIRA issue will be logged as follows:
 ![JIRA issue](https://raw.githubusercontent.com/magicdude4eva/graylog-jira-alarmcallback/master/screenshot-jira.png)
  
 ## Copyright
