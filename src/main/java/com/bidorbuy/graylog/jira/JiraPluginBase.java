@@ -50,7 +50,7 @@ import java.util.regex.*;
 
 public class JiraPluginBase {
   
-  private static final Logger LOG = LoggerFactory.getLogger(JiraClient.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JiraPluginBase.class);
   
   public static final String CK_LABELS           = "labels";
   public static final String CK_USERNAME         = "username";
@@ -343,7 +343,5 @@ public class JiraPluginBase {
 
     return JiraMessageDigest;
   }
-  
-  
   
 }

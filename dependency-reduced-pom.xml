@@ -4,9 +4,9 @@
   <groupId>com.bidorbuy.graylog</groupId>
   <artifactId>graylog-plugin-jira</artifactId>
   <name>${project.artifactId}</name>
-  <version>1.0.0</version>
-  <description>Graylog ${project.artifactId} plugin.</description>
-  <url>https://www.graylog.org</url>
+  <version>1.0.1</version>
+  <description>A Graylog alarm callback plugin that integrates Graylog into JIRA.</description>
+  <url>https://github.com/magicdude4eva/graylog-jira-alarmcallback</url>
   <build>
     <plugins>
       <plugin>
@@ -100,10 +100,6 @@
           <groupId>com.google.inject.extensions</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>joda-time</artifactId>
-          <groupId>joda-time</groupId>
-        </exclusion>
-        <exclusion>
           <artifactId>metrics-core</artifactId>
           <groupId>io.dropwizard.metrics</groupId>
         </exclusion>
@@ -174,28 +170,11 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.12</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <artifactId>hamcrest-core</artifactId>
-          <groupId>org.hamcrest</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
-      <version>1.7.10</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <artifactId>slf4j-api</artifactId>
-          <groupId>org.slf4j</groupId>
-        </exclusion>
-      </exclusions>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.0</version>
+      <scope>provided</scope>
+      <optional>true</optional>
     </dependency>
   </dependencies>
   <properties>

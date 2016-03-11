@@ -2,7 +2,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Gerd Naschenweng / bidorbuy.co.za
- * 
+ *
  * Original idea from https://github.com/tjackiw/graylog-plugin-jira
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -12,8 +12,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -27,91 +27,177 @@
 
 package com.bidorbuy.graylog.jira.callback;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.ImmutableList;
-import com.bidorbuy.graylog.jira.*;
-import org.graylog2.plugin.alarms.AlertCondition;
-import org.graylog2.plugin.alarms.callbacks.AlarmCallback;
-import org.graylog2.plugin.alarms.callbacks.AlarmCallbackConfigurationException;
-import org.graylog2.plugin.alarms.callbacks.AlarmCallbackException;
-import org.graylog2.plugin.configuration.Configuration;
-import org.graylog2.plugin.configuration.ConfigurationException;
-import org.graylog2.plugin.configuration.ConfigurationRequest;
-import org.graylog2.plugin.streams.Stream;
+import com.bidorbuy.graylog.jira.JiraIssue;
+import com.bidorbuy.graylog.jira.JiraPluginBase;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import org.graylog2.plugin.alarms.AlertCondition;
+import org.graylog2.plugin.alarms.callbacks.*;
+import org.graylog2.plugin.configuration.*;
+import org.graylog2.plugin.streams.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
+
+import net.rcarz.jiraclient.*;
+
 public class JiraAlarmCallback extends JiraPluginBase implements AlarmCallback {
-    private Configuration configuration;
+
+  private static final Logger LOG = LoggerFactory.getLogger(JiraAlarmCallback.class);
+
+  private Configuration configuration;
+
+  private static final List<String> SENSITIVE_CONFIGURATION_KEYS = ImmutableList.of(CK_PASSWORD);
+
+  @Override
+  public void initialize (final Configuration config) throws AlarmCallbackConfigurationException {
+
+    this.configuration = config;
+    try {
+      checkConfiguration(config);
+    } catch (ConfigurationException e) {
+      throw new AlarmCallbackConfigurationException ("Configuration error: " + e.getMessage());
+    }
+  }
+
+  @Override
+  public void call (Stream stream, AlertCondition.CheckResult result) throws AlarmCallbackException {
+
+    JiraIssue jiraIssue = new JiraIssue(configuration,
+        buildTitle(stream, result, configuration),
+        buildDescription(stream, result, configuration),
+        getMessageDigest(stream, result, configuration));
     
-    private static final List<String> SENSITIVE_CONFIGURATION_KEYS = ImmutableList.of(CK_PASSWORD);
-
-    @Override
-    public void initialize(final Configuration config) throws AlarmCallbackConfigurationException {
-        this.configuration = config;
-        try {
-            checkConfiguration(config);
-        } catch (ConfigurationException e) {
-            throw new AlarmCallbackConfigurationException("Configuration error. " + e.getMessage());
-        }
+    try {
+      if (isDuplicateJiraIssue(jiraIssue) == false) {
+        createJIRAIssue(jiraIssue);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage());
     }
 
-    @Override
-    public void call(Stream stream, AlertCondition.CheckResult result) throws AlarmCallbackException {
-        final JiraClient client = new JiraClient(
-                configuration.getString(CK_INSTANCE_URL),
-                configuration.getString(CK_USERNAME),
-                configuration.getString(CK_PASSWORD)
-        );
+    // Create the issue
 
-        JiraIssue jiraIssue = new JiraIssue(
-                configuration.getString(CK_PROJECT_KEY),
-                configuration.getString(CK_LABELS),
-                configuration.getString(CK_ISSUE_TYPE),
-                configuration.getString(CK_COMPONENTS),
-                configuration.getString(CK_PRIORITY),
-                buildTitle(stream, result, configuration),
-                buildDescription(stream, result, configuration),
-                getMessageDigest(stream, result, configuration)
-        );
-        try {
-           if (client.isDuplicateJiraIssue(jiraIssue) == false) {
-             client.send(jiraIssue);
-           }
-        } catch (JiraClient.JiraClientException e) {
-            throw new RuntimeException(e.getMessage());
-        }
-    }
+  }
 
-    @Override
-    public Map<String, Object> getAttributes() {
-        return Maps.transformEntries(configuration.getSource(), new Maps.EntryTransformer<String, Object, Object>() {
-            @Override
-            public Object transformEntry(String key, Object value) {
-                if (SENSITIVE_CONFIGURATION_KEYS.contains(key)) {
-                    return "****";
-                }
-                return value;
+  /** 
+   * @see org.graylog2.plugin.alarms.callbacks.AlarmCallback#getAttributes()
+   */
+  @Override
+  public Map<String, Object> getAttributes () {
+
+    return Maps.transformEntries(configuration.getSource(),
+        new Maps.EntryTransformer<String, Object, Object>() {
+
+          @Override
+          public Object transformEntry (String key, Object value) {
+
+            if (SENSITIVE_CONFIGURATION_KEYS.contains(key)) {
+              return "****";
             }
+            return value;
+          }
         });
+  }
+
+  /**
+   * Checks if a JIRA issue is duplicated
+   * 
+   * @param jiraIssue
+   * @return
+   * @throws Exception
+   */
+  public boolean isDuplicateJiraIssue (JiraIssue jiraIssue) throws Exception {
+
+    boolean bDuplicateIssue = false;
+
+    if (jiraIssue.isMessageDigestAvailable() == false) {
+      return false;
     }
 
-    
-    
+    LOG.info("[JIRA] Checking for duplicate issues with MD5=" + jiraIssue.getMessageDigest());
+ 
+    try {
+      BasicCredentials creds = new BasicCredentials(
+          configuration.getString(CK_USERNAME),
+          configuration.getString(CK_PASSWORD));
 
-    @Override
-    // Never actually called by graylog-server
-    public void checkConfiguration() throws ConfigurationException {
+      JiraClient jira = new JiraClient(configuration.getString(CK_INSTANCE_URL), creds);
+
+      // Search for duplicate issues
+      Issue.SearchResult srJiraIssues = jira.searchIssues(jiraIssue.getDuplicateIssueJQLString(), "id,key", 1);
+
+      if (srJiraIssues != null && srJiraIssues.issues != null && srJiraIssues.issues.isEmpty() == false) {
+        bDuplicateIssue = true;
+        LOG.info("[JIRA] There are " + srJiraIssues.issues.size() + " issue(s) open with the same hash");
+      } else {
+        LOG.info("[JIRA] No existing open JIRA issue, will create a new one");
+      }
+
+    } catch (JiraException ex) {
+      LOG.error("[JIRA] Error searching for JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ex.getCause().getMessage() : ""));
+      throw new Exception("[JIRA] Failed searching for duplicate issue", ex);
     }
 
-    @Override
-    public ConfigurationRequest getRequestedConfiguration() {
-        return configuration();
+    return bDuplicateIssue;
+  }
+  
+  
+  /**
+   * Create a JIRA issue
+   * 
+   * @param jiraIssue
+   * @return
+   * @throws Exception
+   */
+  public void createJIRAIssue (JiraIssue jiraIssue) throws Exception {
+
+    try {
+      BasicCredentials creds = new BasicCredentials(
+          configuration.getString(CK_USERNAME),
+          configuration.getString(CK_PASSWORD));
+
+      JiraClient jira = new JiraClient(configuration.getString(CK_INSTANCE_URL), creds);
+      
+      Issue newIssue = jira.createIssue(jiraIssue.getProjectKey(), jiraIssue.getIssueType())
+          .field(Field.PRIORITY, jiraIssue.getPriority())
+          .field(Field.SUMMARY, jiraIssue.getTitle())
+          .field(Field.DESCRIPTION, jiraIssue.getDescription())
+          .field(Field.LABELS, Arrays.asList(jiraIssue.getLabels().split("\\,")))
+          .field(Field.COMPONENTS, Arrays.asList(jiraIssue.getComponents().split("\\,")))
+          .execute();
+          
+      // Search for duplicate issues
+      LOG.info("[JIRA] Created new issue " + newIssue.getKey() + " for project " + jiraIssue.getProjectKey());
+
+    } catch (JiraException ex) {
+      LOG.error("[JIRA] Error creating JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ex.getCause().getMessage() : ""));
+      throw new Exception("[JIRA] Failed creating new issue", ex);
     }
 
-    @Override
-    public String getName() {
-        return "JIRA Alarm Callback";
-    }
+    return ;
+  }  
+  
+  
+
+  @Override
+  // Never actually called by Graylog-server
+  public void checkConfiguration () throws ConfigurationException {
+
+  }
+
+  @Override
+  public ConfigurationRequest getRequestedConfiguration () {
+    return configuration();
+  }
+
+  @Override
+  public String getName () {
+    return "Graylog JIRA integration plugin";
+  }
 }

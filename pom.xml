@@ -6,12 +6,25 @@
 
     <groupId>com.bidorbuy.graylog</groupId>
     <artifactId>graylog-plugin-jira</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <name>${project.artifactId}</name>
-    <description>Graylog ${project.artifactId} plugin.</description>
-    <url>https://www.graylog.org</url>
+    <description>A Graylog alarm callback plugin that integrates Graylog into JIRA.</description>
+    <url>https://github.com/magicdude4eva/graylog-jira-alarmcallback</url>
+
+  <scm>
+    <url>https://github.com/magicdude4eva/graylog-jira-alarmcallback.git</url>
+    <connection>https://github.com/magicdude4eva/graylog-jira-alarmcallback.git</connection>
+  </scm>
+
+  <developers>
+    <developer>
+      <id>magicdude4eva</id>
+      <name>Gerd Naschenweng</name>
+      <email>gerd@naschenweng.info</email>
+    </developer>
+  </developers>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -28,28 +41,39 @@
             <version>${graylog2.version}</version>
             <scope>provided</scope>
         </dependency>
-<dependency>
-	<groupId>org.apache.commons</groupId>
-	<artifactId>commons-lang3</artifactId>
-	<version>3.0</version>
-</dependency>
-
-       <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
-            <scope>test</scope>
+        <dependency>
+        	<groupId>net.rcarz</groupId>
+        	<artifactId>jira-client</artifactId>
+        	<version>0.5</version>
+        	<exclusions>
+        		<exclusion>
+        			<artifactId>junit</artifactId>
+        			<groupId>junit</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>commons-logging</artifactId>
+        			<groupId>commons-logging</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>commons-lang</artifactId>
+        			<groupId>commons-lang</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>commons-collections</artifactId>
+        			<groupId>commons-collections</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>commons-codec</artifactId>
+        			<groupId>commons-codec</groupId>
+        		</exclusion>
+        	</exclusions>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>1.7.10</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-	       <groupId>com.googlecode.json-simple</groupId>
-	       <artifactId>json-simple</artifactId>
-	       <version>1.1.1</version>
+        	<groupId>org.apache.commons</groupId>
+        	<artifactId>commons-lang3</artifactId>
+        	<version>3.0</version>
+        	<optional>true</optional>
+        	<scope>provided</scope>
         </dependency>
     </dependencies>
 

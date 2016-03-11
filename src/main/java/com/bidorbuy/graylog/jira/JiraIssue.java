@@ -2,7 +2,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2016 Gerd Naschenweng / bidorbuy.co.za
- * 
+ *
  * Original idea from https://github.com/tjackiw/graylog-plugin-jira
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -12,8 +12,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -27,102 +27,80 @@
 
 package com.bidorbuy.graylog.jira;
 
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.graylog2.plugin.configuration.Configuration;
 
 public class JiraIssue {
-  
-  private static final Logger LOG = LoggerFactory.getLogger(JiraClient.class);
-  
-    private final String title;
-    private final String labels;
-    private final String priority;
-    private final String issueType;
-    private final String projectKey;
-    private final String components;
-    private final String description;
-    private final String messageDigest;
 
-    public JiraIssue(final String projectKey, final String labels, final String issueType, final String components, final String priority, final String title, final String description, final String messagedigest) {
-        this.title = title;
-        this.labels = labels;
-        this.priority = priority;
-        this.issueType = issueType;
-        this.projectKey = projectKey;
-        this.components = components;
-        this.description = description;
-        this.messageDigest = messagedigest;
-    }
-    
-    @SuppressWarnings("unchecked")
-    public String toJSONString() {
-        JSONObject project = new JSONObject();
-        project.put("key", projectKey);
+  private final String title;
+  private final String labels;
+  private final String priority;
+  private final String issueType;
+  private final String projectKey;
+  private final String components;
+  private final String description;
+  private final String messageDigest;
 
-        JSONObject issuetype = new JSONObject();
-        issuetype.put("name", issueType);
+  public JiraIssue(Configuration configuration, final String title, final String description, final String messagedigest) {
 
-        JSONObject level = new JSONObject();
-        level.put("name", priority);
+    this.projectKey = configuration.getString(JiraPluginBase.CK_PROJECT_KEY);
+    this.labels = configuration.getString(JiraPluginBase.CK_LABELS);
+    this.issueType = configuration.getString(JiraPluginBase.CK_ISSUE_TYPE);
+    this.components = configuration.getString(JiraPluginBase.CK_COMPONENTS);
+    this.priority = configuration.getString(JiraPluginBase.CK_PRIORITY);
 
-        JSONArray labelList = new JSONArray();
-        String[] labelArr = labels.split("\\,");
-        for (String s : labelArr) {
-            labelList.add(s);
-        }
-
-        JSONArray componentList = new JSONArray();
-        String[] compArr = components.split("\\,");
-        for (String s : compArr) {
-            JSONObject hash = new JSONObject();
-            hash.put("name", s);
-            componentList.add(hash);
-        }
-
-        JSONObject obj = new JSONObject();
-        obj.put("summary", title);
-        obj.put("description", description);
-        obj.put("project", project);
-        obj.put("issuetype", issuetype);
-        obj.put("labels", labelList);
-        obj.put("components", componentList);
-        obj.put("priority", level);
-
-        JSONObject fields = new JSONObject();
-        fields.put("fields", obj);
-
-        return fields.toJSONString();
-    }
-    
-    @SuppressWarnings("unchecked")
-    public String toSearchJSONString() {
-      
-      JSONArray fieldList = new JSONArray();
-      fieldList.add("id");
-      fieldList.add("key");
-      
-      JSONObject obj = new JSONObject();
-      obj.put("jql", "project = " + projectKey
-          + " AND Status not in (Closed, Done, Resolved)"
-          + " AND description ~ \"" + messageDigest + "\"");
-      obj.put("startAt", "0");
-      obj.put("maxResults", "1");
-      obj.put("fields", fieldList);
-
-      return obj.toJSONString();
+    this.title = title;
+    this.description = description;
+    this.messageDigest = messagedigest;
   }
-    
-    public boolean isMessageDigestAvailable () {
 
-      LOG.info("[JIRA] JIRA issue Digest = " + messageDigest);
-      
-      if (messageDigest != null && !messageDigest.isEmpty()) {
-        return true;
-      } else {
-        return false;
-      }
+  public String getDuplicateIssueJQLString () {
+
+    return "project = " + projectKey
+        + " AND Status not in (Closed, Done, Resolved)"
+        + " AND description ~ \"" + messageDigest + "\"";
+  }
+
+  /**
+   * @return the messageDigest
+   */
+  public String getMessageDigest () {
+    return messageDigest;
+  }
+
+  public boolean isMessageDigestAvailable () {
+    if (messageDigest != null && !messageDigest.isEmpty()) {
+      return true;
+    } else {
+      return false;
     }
-    
+  }
+
+  public String getTitle () {
+    return title;
+  }
+
+  public String getLabels () {
+    return labels;
+  }
+
+  public String getPriority () {
+    return priority;
+  }
+
+  public String getIssueType () {
+    return issueType;
+  }
+
+  public String getProjectKey () {
+    return projectKey;
+  }
+
+  public String getComponents () {
+    return components;
+  }
+
+  public String getDescription () {
+    return description;
+  }
+
 }

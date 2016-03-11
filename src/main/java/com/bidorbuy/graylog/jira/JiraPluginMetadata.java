@@ -44,7 +44,7 @@ public class JiraPluginMetadata implements PluginMetaData {
 
     @Override
     public String getName() {
-        return "JIRA Alarm Callback Plugin";
+        return "JIRA integration plugin";
     }
 
     @Override
@@ -64,7 +64,7 @@ public class JiraPluginMetadata implements PluginMetaData {
 
     @Override
     public String getDescription() {
-        return "Alarm callback plugin that creates JIRA issues for stream alerts.";
+        return "Graylog stream alert integration plugin for JIRA with templating of JIRA issue title and JIRA issue message";
     }
 
     @Override
