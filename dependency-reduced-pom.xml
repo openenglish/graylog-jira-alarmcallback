@@ -4,9 +4,20 @@
   <groupId>com.bidorbuy.graylog</groupId>
   <artifactId>graylog-plugin-jira</artifactId>
   <name>${project.artifactId}</name>
-  <version>1.0.1</version>
+  <version>1.0.2</version>
   <description>A Graylog alarm callback plugin that integrates Graylog into JIRA.</description>
   <url>https://github.com/magicdude4eva/graylog-jira-alarmcallback</url>
+  <developers>
+    <developer>
+      <id>magicdude4eva</id>
+      <name>Gerd Naschenweng</name>
+      <email>gerd@naschenweng.info</email>
+    </developer>
+  </developers>
+  <scm>
+    <connection>https://github.com/magicdude4eva/graylog-jira-alarmcallback.git</connection>
+    <url>https://github.com/magicdude4eva/graylog-jira-alarmcallback.git</url>
+  </scm>
   <build>
     <plugins>
       <plugin>

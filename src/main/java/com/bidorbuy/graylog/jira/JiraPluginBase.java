@@ -272,8 +272,6 @@ public class JiraPluginBase {
     
     strMessage = StringEscapeUtils.unescapeJava(strMessage);
     
-    String JiraMessageDigest = "";
-    
     // Get the last message
     if (!checkResult.getMatchingMessages().isEmpty()) {
       // get fields from last message only
@@ -286,9 +284,6 @@ public class JiraPluginBase {
       for (Map.Entry<String, Object> arg : lastMessageFields.entrySet()) {
         strMessage = strMessage.replace("[LAST_MESSAGE." + arg.getKey().toUpperCase() + "]", arg.getValue().toString());
       }
-      
-      // See if we can get a checksum for the message
-      JiraMessageDigest = getMessageDigest(stream, checkResult, configuration);
     }
 
     // replace placeholders
@@ -305,11 +300,6 @@ public class JiraPluginBase {
     sb.append(checkResult.getResultDescription());
     sb.append("\n\n");
     sb.append(strMessage).append("\n\n");
-    
-    if (JiraMessageDigest != null && !JiraMessageDigest.isEmpty()) {
-      sb.append("\n\n");
-      sb.append("GraylogDigest=").append(JiraMessageDigest).append("\n\n");
-    }
     
     return sb.toString();
   }

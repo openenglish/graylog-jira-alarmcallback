@@ -53,13 +53,6 @@ public class JiraIssue {
     this.messageDigest = messagedigest;
   }
 
-  public String getDuplicateIssueJQLString () {
-
-    return "project = " + projectKey
-        + " AND Status not in (Closed, Done, Resolved)"
-        + " AND description ~ \"" + messageDigest + "\"";
-  }
-
   /**
    * @return the messageDigest
    */

@@ -31,6 +31,7 @@ import com.bidorbuy.graylog.jira.JiraIssue;
 import com.bidorbuy.graylog.jira.JiraPluginBase;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -45,10 +46,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 import net.rcarz.jiraclient.*;
+import net.sf.json.JSONObject;
 
 public class JiraAlarmCallback extends JiraPluginBase implements AlarmCallback {
 
   private static final Logger LOG = LoggerFactory.getLogger(JiraAlarmCallback.class);
+  private static final String CONST_GRAYLOGMD5_DIGEST = "graylog_md5";
 
   private Configuration configuration;
 
@@ -106,7 +109,7 @@ public class JiraAlarmCallback extends JiraPluginBase implements AlarmCallback {
   }
 
   /**
-   * Checks if a JIRA issue is duplicated
+   * Checks if a JIRA issue is duplicated.
    * 
    * @param jiraIssue
    * @return
@@ -130,8 +133,12 @@ public class JiraAlarmCallback extends JiraPluginBase implements AlarmCallback {
       JiraClient jira = new JiraClient(configuration.getString(CK_INSTANCE_URL), creds);
 
       // Search for duplicate issues
-      Issue.SearchResult srJiraIssues = jira.searchIssues(jiraIssue.getDuplicateIssueJQLString(), "id,key", 1);
-
+      Issue.SearchResult srJiraIssues = jira.searchIssues("project = " + jiraIssue.getProjectKey() 
+        + " AND Status not in (Closed, Done, Resolved)"
+        + " AND (" + CONST_GRAYLOGMD5_DIGEST + " ~ \"" + jiraIssue.getMessageDigest() + "\" OR"
+        + " description ~ \"" + jiraIssue.getMessageDigest() + "\")",
+        "id,key,summary", 1);
+      
       if (srJiraIssues != null && srJiraIssues.issues != null && srJiraIssues.issues.isEmpty() == false) {
         bDuplicateIssue = true;
         LOG.info("[JIRA] There are " + srJiraIssues.issues.size() + " issue(s) open with the same hash");
@@ -140,6 +147,9 @@ public class JiraAlarmCallback extends JiraPluginBase implements AlarmCallback {
       }
 
     } catch (JiraException ex) {
+      LOG.error("[JIRA] Error searching for JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ex.getCause().getMessage() : ""));
+      throw new Exception("[JIRA] Failed searching for duplicate issue", ex);
+    } catch (Exception ex) {
       LOG.error("[JIRA] Error searching for JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ex.getCause().getMessage() : ""));
       throw new Exception("[JIRA] Failed searching for duplicate issue", ex);
     }
@@ -171,10 +181,26 @@ public class JiraAlarmCallback extends JiraPluginBase implements AlarmCallback {
           .field(Field.LABELS, Arrays.asList(jiraIssue.getLabels().split("\\,")))
           .field(Field.COMPONENTS, Arrays.asList(jiraIssue.getComponents().split("\\,")))
           .execute();
-          
-      // Search for duplicate issues
+      
+      // We now check if the JIRA install has the MD5 field configured and if so, we will update it with the digest,
+      // otherwise we will update the description
+      
+      if (jiraIssue.isMessageDigestAvailable() == true) {
+        String md5Field = getJIRACustomMD5Field(jira, jiraIssue);
+        
+        if (md5Field != null) {
+          newIssue.update()
+            .field(md5Field, jiraIssue.getMessageDigest())
+            .execute();
+        } else {
+          String strAppendMessageDigest = "\n\n" + CONST_GRAYLOGMD5_DIGEST + "=" + jiraIssue.getMessageDigest() + "\n\n";
+          newIssue.update()
+          .field(Field.DESCRIPTION, jiraIssue.getDescription() + strAppendMessageDigest)
+          .execute();
+        }
+      }
+      
       LOG.info("[JIRA] Created new issue " + newIssue.getKey() + " for project " + jiraIssue.getProjectKey());
-
     } catch (JiraException ex) {
       LOG.error("[JIRA] Error creating JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ex.getCause().getMessage() : ""));
       throw new Exception("[JIRA] Failed creating new issue", ex);
@@ -183,12 +209,42 @@ public class JiraAlarmCallback extends JiraPluginBase implements AlarmCallback {
     return ;
   }  
   
-  
+  /**
+   * Return the name of the md5 custom field
+   * @param jira
+   * @param jiraIssue
+   * @return
+   * @throws Exception
+   */
+  @SuppressWarnings("unchecked")
+  private String getJIRACustomMD5Field (JiraClient jira, JiraIssue jiraIssue) throws Exception {
+    
+    String strJIRACustomMD5Field = null;
 
+    try {
+      JSONObject customfields = Issue.getCreateMetadata(jira.getRestClient(), jiraIssue.getProjectKey(), jiraIssue.getIssueType());
+      
+      for (Iterator<String> iterator = customfields.keySet().iterator(); iterator.hasNext();) {
+        String key = iterator.next();
+        
+        if (key.startsWith("customfield_")) {
+          JSONObject metaFields = customfields.getJSONObject(key);
+          if (metaFields.has("name") && CONST_GRAYLOGMD5_DIGEST.equalsIgnoreCase(metaFields.getString("name"))) {
+            strJIRACustomMD5Field = key;
+            break;
+          }
+        }
+      }      
+    } catch (JiraException ex) {
+      LOG.error("[JIRA] Error getting JIRA custom MD5 field=" + ex.getMessage() + (ex.getCause() != null ? ex.getCause().getMessage() : ""));
+    }
+
+    return strJIRACustomMD5Field;
+  }  
+  
   @Override
   // Never actually called by Graylog-server
   public void checkConfiguration () throws ConfigurationException {
-
   }
 
   @Override
