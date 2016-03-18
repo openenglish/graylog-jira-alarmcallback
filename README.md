@@ -21,6 +21,13 @@ A very reliable way of processing Tomcat logs can be achieved by:
 
 With the above you can easily setup a stream where your condition is as simple as "`type must match exactly tomcat AND tags must match exactly exception`"
 
+## About MD5 hashing to avoid duplicates
+When you want to automatically log JIRA issues as an exception occurs on your servers, you want to make sure that only one issue is logged. This is achieved by creating a MD5 from a portion of the message (typically the logmessage without the timestamp) and then injecting the MD5 into the JIRA issue.
+
+As Graylog fires an alarm, this plugin will search JIRA for any existing issues (via the MD5) to avoid creation of duplicate issues. Out of the box, this plugin will append a MD5 hash to the JIRA issue description and no JIRA additional configuration is required.
+
+If you are able to add custom fields, the preferred option is to create a JIRA custom field with the name `graylog_md5` and the plugin will then automatically insert the MD5 hash into the JIRA field.
+ 
 
 Installation of plugin
 ----------------------
