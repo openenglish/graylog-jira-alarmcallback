@@ -4,7 +4,7 @@
   <groupId>com.bidorbuy.graylog</groupId>
   <artifactId>graylog-plugin-jira</artifactId>
   <name>${project.artifactId}</name>
-  <version>1.0.2</version>
+  <version>1.0.3</version>
   <description>A Graylog alarm callback plugin that integrates Graylog into JIRA.</description>
   <url>https://github.com/magicdude4eva/graylog-jira-alarmcallback</url>
   <developers>
@@ -99,7 +99,7 @@
     <dependency>
       <groupId>org.graylog2</groupId>
       <artifactId>graylog2-plugin</artifactId>
-      <version>1.0.0</version>
+      <version>1.3.3</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -190,7 +190,7 @@
   </dependencies>
   <properties>
     <graylog2.plugin-dir>/usr/share/graylog-server/plugin</graylog2.plugin-dir>
-    <graylog2.version>1.0.0</graylog2.version>
+    <graylog2.version>1.3.3</graylog2.version>
     <maven.compiler.source>1.7</maven.compiler.source>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.target>1.7</maven.compiler.target>

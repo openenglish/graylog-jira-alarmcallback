@@ -61,7 +61,11 @@ Configuration
   * __[LAST_MESSAGE.MESSAGE]__: The actual message
   * __[LAST_MESSAGE.FIELDNAME]__: Replaces with any field in the logged record. i.e. "`[LAST_MESSAGE.PATH]`" would display the full logpath where the message originated from.
 * __JIRA task title__: Sets the title of the JIRA task. Can include `[MESSAGE_REGEX]`(see __Message regex__). Can also include any field via `[LAST_MESSAGE.FIELDNAME]`
-* __Message regex__: A regular expression to extract a portion of the message. This is used to extract an exception message as well as to generate a MD5 hash to identify duplicate JIRA issues.
+* __Message regex__: A regular expression to extract a portion of the message. This is used to extract an exception message and can be used to populate the __JIRA task title__ or the __JIRA MD5 pattern__
+* __JIRA MD5 pattern__: A string of multiple placeholders patterns to calculate a MD5 pattern which is used to avoid duplicates in JIRA. It defaults to __[MESSAGE_REGEX]__ but can also include any field from __[LAST_MESSAGE.*]__:
+  * Create a MD5 consisting of message regex and message source: __[LAST_MESSAGE.SOURCE][MESSAGE_REGEX]__
+  * Create a MD5 consisting of fields from the message: __[LAST_MESSAGE.SOURCE][LAST_MESSAGE.ERRORCODE][LAST_MESSAGE.TAGS][LAST_MESSAGE.TYPE]__
+  * If a specified field does not exist in the last message, it will be skipped as part of the MD5 generation
   
 
 ### Callback examples
@@ -88,6 +92,7 @@ With the following settings:
 * __Message regex__ = `([a-zA-Z_.]+(?!.*Exception): .+)`
 * __JIRA task title__ = `[Graylog-[LAST_MESSAGE.SOURCE]] [MESSAGE_REGEX]` 
 * __Message template__ = `*Alert triggered at:* \n [ALERT_TRIGGERED_AT]\n\n *Stream URL:* \n [STREAM_URL]\n\n*Source:* \n [LAST_MESSAGE.SOURCE]\n\n *Message:* \n [LAST_MESSAGE.MESSAGE]\n\n`
+* __JIRA MD5 pattern__ = `[MESSAGE_REGEX]`
 
 The JIRA issue will be logged as follows:
 ![JIRA issue](https://raw.githubusercontent.com/magicdude4eva/graylog-jira-alarmcallback/master/screenshot-jira.png)

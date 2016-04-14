@@ -52,18 +52,19 @@ public class JiraPluginBase {
   
   private static final Logger LOG = LoggerFactory.getLogger(JiraPluginBase.class);
   
-  public static final String CK_LABELS           = "labels";
-  public static final String CK_USERNAME         = "username";
-  public static final String CK_PASSWORD         = "password";
-  public static final String CK_PRIORITY         = "priority";
-  public static final String CK_ISSUE_TYPE       = "issue_type";
-  public static final String CK_COMPONENTS       = "components";
-  public static final String CK_GRAYLOG_URL      = "graylog_url";
-  public static final String CK_PROJECT_KEY      = "project_key";
-  public static final String CK_INSTANCE_URL     = "instance_url";
-  public static final String CK_MESSAGE_TEMPLATE = "message_template";
-  public static final String CK_TITLE_TEMPLATE   = "title_template";
-  public static final String CK_MESSAGE_REGEX    = "message_regex";
+  public static final String CK_LABELS                = "labels";
+  public static final String CK_USERNAME              = "username";
+  public static final String CK_PASSWORD              = "password";
+  public static final String CK_PRIORITY              = "priority";
+  public static final String CK_ISSUE_TYPE            = "issue_type";
+  public static final String CK_COMPONENTS            = "components";
+  public static final String CK_GRAYLOG_URL           = "graylog_url";
+  public static final String CK_PROJECT_KEY           = "project_key";
+  public static final String CK_INSTANCE_URL          = "instance_url";
+  public static final String CK_MESSAGE_TEMPLATE      = "message_template";
+  public static final String CK_TITLE_TEMPLATE        = "title_template";
+  public static final String CK_MESSAGE_REGEX         = "message_regex";
+  public static final String CK_JIRA_MD5_HASH_PATTERN = "jira_md5_hash_pattern";
   
   // The default template for JIRA messages
   private static final String CONST_JIRA_MESSAGE_TEMPLATE = "*Stream title:* \n [STREAM_TITLE]\n\n"
@@ -77,6 +78,8 @@ public class JiraPluginBase {
   private static final String CONST_JIRA_TITLE_TEMPLATE = "Jira [MESSAGE_REGEX]";
 
   private static final String CONST_JIRA_MESSAGE_REGEX = "([a-zA-Z_.]+(?!.*Exception): .+)";
+
+  private static final String CONST_JIRA_MD5_TEMPLATE = "[MESSAGE_REGEX]";
   
   public static ConfigurationRequest configuration () {
 
@@ -127,8 +130,12 @@ public class JiraPluginBase {
         ConfigurationField.Optional.NOT_OPTIONAL));
 
     configurationRequest.addField (new TextField (
-        CK_MESSAGE_REGEX, "Message regex", CONST_JIRA_MESSAGE_REGEX, "Message regex to store as hash in JIRA",
-        ConfigurationField.Optional.NOT_OPTIONAL));
+        CK_MESSAGE_REGEX, "Message regex", CONST_JIRA_MESSAGE_REGEX, "Message regex to extract message content",
+        ConfigurationField.Optional.OPTIONAL));
+    
+    configurationRequest.addField (new TextField (
+        CK_JIRA_MD5_HASH_PATTERN, "JIRA MD5 pattern", CONST_JIRA_MD5_TEMPLATE, "Pattern to construct MD5",
+        ConfigurationField.Optional.OPTIONAL));
     
     return configurationRequest;
   }
@@ -310,21 +317,55 @@ public class JiraPluginBase {
     
     // Get the last message
     if (!checkResult.getMatchingMessages().isEmpty()) {
-      // See if we can get a checksum for the message
+      String JiraMessageRegex = "";
+      MessageSummary lastMessage = checkResult.getMatchingMessages().get(0);
+
+      // Let's extract the message regex first
       if (configuration.stringIsSet(CK_MESSAGE_REGEX) && !configuration.getString(CK_MESSAGE_REGEX).equals("null")) {
         try {
-          MessageSummary lastMessage = checkResult.getMatchingMessages().get(0);
-
           Matcher matcher = Pattern.compile(configuration.getString(CK_MESSAGE_REGEX)).matcher(lastMessage.getMessage());
           
           if (matcher.find()) {
-            String JiraMessage = lastMessage.getMessage().substring(matcher.start());
-            
-            MessageDigest m = MessageDigest.getInstance("MD5");
-            m.update (JiraMessage.getBytes(), 0, JiraMessage.length());
-            JiraMessageDigest = new BigInteger(1, m.digest()).toString(16);
+            JiraMessageRegex = lastMessage.getMessage().substring(matcher.start());
           }
-
+        } catch (Exception ex) {
+          ; // can not do anything - we skip
+        }
+      }
+      
+      String JiraMD5Content = "";
+      
+      // Let's extract the message regex first
+      if (configuration.stringIsSet(CK_JIRA_MD5_HASH_PATTERN) && !configuration.getString(CK_JIRA_MD5_HASH_PATTERN).equals("null")) {
+        try {
+          JiraMD5Content = configuration.getString(CK_JIRA_MD5_HASH_PATTERN);
+          
+          // replace the message-regex place-holder
+          JiraMD5Content = JiraMD5Content.replace("[MESSAGE_REGEX]", JiraMessageRegex);
+          
+          // iterate through all the message fields and replace the template
+          Map<String, Object> lastMessageFields = lastMessage.getFields();
+          
+          for (Map.Entry<String, Object> arg : lastMessageFields.entrySet()) {
+            JiraMD5Content = JiraMD5Content.replace("[LAST_MESSAGE." + arg.getKey().toUpperCase() + "]", arg.getValue().toString());
+          }
+          
+        } catch (Exception ex) {
+          ; // can not do anything - we skip
+        }
+      }
+      
+      // We default the extracted message as the template
+      if (JiraMD5Content == null || JiraMD5Content.length() == 0) {
+        JiraMD5Content = JiraMessageRegex;
+      }
+      
+      // Create the MD5 from the template
+      if (JiraMD5Content == null || JiraMD5Content.length() == 0) {
+        try {
+          MessageDigest m = MessageDigest.getInstance("MD5");
+          m.update (JiraMD5Content.getBytes(), 0, JiraMD5Content.length());
+          JiraMessageDigest = new BigInteger(1, m.digest()).toString(16);
         } catch (Exception ex) {
           ; // can not do anything - we skip
         }

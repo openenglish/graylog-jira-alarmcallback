@@ -6,7 +6,7 @@
 
     <groupId>com.bidorbuy.graylog</groupId>
     <artifactId>graylog-plugin-jira</artifactId>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <packaging>jar</packaging>
 
     <name>${project.artifactId}</name>
@@ -30,7 +30,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.7</maven.compiler.source>
         <maven.compiler.target>1.7</maven.compiler.target>
-        <graylog2.version>1.0.0</graylog2.version>
+        <graylog2.version>1.3.3</graylog2.version>
         <graylog2.plugin-dir>/usr/share/graylog-server/plugin</graylog2.plugin-dir>
     </properties>
 
