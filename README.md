@@ -3,8 +3,8 @@
 A Graylog alarm callback plugin that integrates [Graylog](https://www.graylog.org/) into [JIRA](https://www.atlassian.com/software/jira/).
 
 ## Main features
-* Templating in JIRA issue title and JIRA message via place holders
-* Embed a MD5 hash into the JIRA issue to prevent duplicate JIRA issues
+* Templating of JIRA issue title and JIRA message via place holders
+* Embed a MD5 hash into the JIRA issue via custom-field or embed within JIRA-message to prevent duplicate JIRA issues
 
 ![Graylog JIRA plugin](https://raw.githubusercontent.com/magicdude4eva/graylog-jira-alarmcallback/master/screenshot-alert-config.png)
 
@@ -31,12 +31,27 @@ If you are able to add custom fields, the preferred option is to create a JIRA c
 
 Installation of plugin
 ----------------------
-This plugin has been tested with Graylog v1.3.3 and JIRA v7.0.10.
+This plugin has been tested with Graylog v1.3.3, Graylog v2.0 and JIRA v7.0.10.
 
 Download the [latest release](https://github.com/magicdude4eva/graylog-jira-alarmcallback/releases) and copy the `.jar` file into your Graylog plugin directory (default is in `/usr/share/graylog-server/plugin`).
 If you are unsure about the plugin location, do a `grep -i plugin_dir /etc/graylog/server/server.conf`.
 
 Restart Graylog via `systemctl restart graylog-server`
+
+
+Troubleshooting the plugin
+--------------------------
+Sending a test alert will create a real ticket in JIRA and any obvious errors will be displayed in the Graylog web-interface. If you run into any issues, it is best to look at the Graylog server log which is at `/var/log/graylog/server.log`.
+
+If you just do a `grep -i jira /var/log/graylog/server.log or` a `tail -f /var/log/graylog/server.log | grep -i jira` you should see output like the below:
+
+```
+2016-04-19T16:33:28.362+02:00 INFO  [JiraAlarmCallback] [JIRA] Checking for duplicate issues with MD5=25933c67013ea3bbb722e34cbe997d1b, using filter-query=AND Status not in (Closed, Done, Resolved)
+2016-04-19T16:33:28.700+02:00 INFO  [JiraAlarmCallback] [JIRA] There is one issue with the same hash
+```
+
+If you found a bug, have an issue or have a feature suggestion, please just log an issue.
+
 
 Configuration
 -------------
@@ -57,16 +72,16 @@ Configuration
   * __[STREAM_RULES]__: Stream rules triggered
   * __[ALERT_TRIGGERED_AT]__: Timestamp when alert was triggered
   * __[ALERT_TRIGGERED_CONDITION]__: Conditions triggering the alert
-  * __[LAST_MESSAGE.SOURCE]__: If a message is present, the placeholder will be replaced with the source origin of the message
-  * __[LAST_MESSAGE.MESSAGE]__: The actual message
-  * __[LAST_MESSAGE.FIELDNAME]__: Replaces with any field in the logged record. i.e. "`[LAST_MESSAGE.PATH]`" would display the full logpath where the message originated from.
-* __JIRA task title__: Sets the title of the JIRA task. Can include `[MESSAGE_REGEX]`(see __Message regex__). Can also include any field via `[LAST_MESSAGE.FIELDNAME]`
+  * __[LAST_MESSAGE.source]__: If a message is present, the placeholder will be replaced with the source origin of the message
+  * __[LAST_MESSAGE.message]__: The actual message
+  * __[LAST_MESSAGE.fieldname]__: Replaces with the field `fieldname` in the logged record i.e. "`[LAST_MESSAGE.path]`" would display the full logpath where the message originated from. `fieldname` is case-sensitive. If a `fieldname` does not exist in the message, the template field is deleted in the message.
+* __JIRA task title__: Sets the title of the JIRA task. Can include `[MESSAGE_REGEX]`(see __Message regex__). Can also include any field via `[LAST_MESSAGE.fieldname]`
 * __Message regex__: A regular expression to extract a portion of the message. This is used to extract an exception message and can be used to populate the __JIRA task title__ or the __JIRA MD5 pattern__
 * __JIRA MD5 pattern__: A string of multiple placeholders patterns to calculate a MD5 pattern which is used to avoid duplicates in JIRA. It defaults to __[MESSAGE_REGEX]__ but can also include any field from __[LAST_MESSAGE.*]__:
-  * Create a MD5 consisting of message regex and message source: __[LAST_MESSAGE.SOURCE][MESSAGE_REGEX]__
-  * Create a MD5 consisting of fields from the message: __[LAST_MESSAGE.SOURCE][LAST_MESSAGE.ERRORCODE][LAST_MESSAGE.TAGS][LAST_MESSAGE.TYPE]__
+  * Create a MD5 consisting of message regex and message source: __[LAST_MESSAGE.source][MESSAGE_REGEX]__
+  * Create a MD5 consisting of fields from the message: __[LAST_MESSAGE.source][LAST_MESSAGE.errorCode][LAST_MESSAGE.tags][LAST_MESSAGE.type]__
   * If a specified field does not exist in the last message, it will be skipped as part of the MD5 generation
-  
+* __JIRA duplicate filter query__: An optional filter query which is used when searching for the MD5 field in JIRA. The filter query must contain the `AND` term and can include any valid JQL - i.e. `AND Status not in (Closed, Done, Resolved)`.  
 
 ### Callback examples
 
@@ -90,8 +105,8 @@ at oracle.jdbc.driver.OraclePreparedStatementWrapper.executeUpdate(OraclePrepare
 
 With the following settings:
 * __Message regex__ = `([a-zA-Z_.]+(?!.*Exception): .+)`
-* __JIRA task title__ = `[Graylog-[LAST_MESSAGE.SOURCE]] [MESSAGE_REGEX]` 
-* __Message template__ = `*Alert triggered at:* \n [ALERT_TRIGGERED_AT]\n\n *Stream URL:* \n [STREAM_URL]\n\n*Source:* \n [LAST_MESSAGE.SOURCE]\n\n *Message:* \n [LAST_MESSAGE.MESSAGE]\n\n`
+* __JIRA task title__ = `[Graylog-[LAST_MESSAGE.source]] [MESSAGE_REGEX]` 
+* __Message template__ = `*Alert triggered at:* \n [ALERT_TRIGGERED_AT]\n\n *Stream URL:* \n [STREAM_URL]\n\n*Source:* \n [LAST_MESSAGE.source]\n\n *Message:* \n [LAST_MESSAGE.message]\n\n`
 * __JIRA MD5 pattern__ = `[MESSAGE_REGEX]`
 
 The JIRA issue will be logged as follows:

@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.bidorbuy.graylog</groupId>
+    <groupId>com.bidorbuy.graylog.alarmcallbacks.jira</groupId>
     <artifactId>graylog-plugin-jira</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4</version>
     <packaging>jar</packaging>
 
     <name>${project.artifactId}</name>
@@ -40,6 +40,12 @@
             <artifactId>graylog2-plugin</artifactId>
             <version>${graylog2.version}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
         	<groupId>net.rcarz</groupId>

@@ -25,23 +25,30 @@
  *
  */
 
-package com.bidorbuy.graylog.jira;
+package com.bidorbuy.graylog.alarmcallbacks.jira;
 
-import org.graylog2.plugin.Plugin;
-import org.graylog2.plugin.PluginMetaData;
+import org.graylog2.plugin.PluginConfigBean;
 import org.graylog2.plugin.PluginModule;
 
-import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 
-public class JiraPlugin implements Plugin {
+/**
+ * Extend the PluginModule abstract class here to add you plugin to the system.
+ */
+public class JiraPluginModule extends PluginModule {
+    /**
+     * Returns all configuration beans required by this plugin.
+     *
+     * Implementing this method is optional. The default method returns an empty {@link Set}.
+     */
     @Override
-    public Collection<PluginModule> modules () {
-        return Collections.<PluginModule>singleton(new JiraPluginModule());
+    public Set<? extends PluginConfigBean> getConfigBeans() {
+        return Collections.emptySet();
     }
-    
+
     @Override
-    public PluginMetaData metadata() {
-        return new JiraPluginMetadata();
+    protected void configure() {
+        addAlarmCallback(JiraAlarmCallback.class);
     }
 }
