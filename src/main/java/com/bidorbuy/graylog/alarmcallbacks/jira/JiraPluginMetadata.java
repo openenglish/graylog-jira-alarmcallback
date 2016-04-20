@@ -57,6 +57,9 @@ public class JiraPluginMetadata implements PluginMetaData {
     }
 
     @Override
+    /*
+     * @see org.graylog2.plugin.PluginMetaData#getVersion()
+     */
     public Version getVersion() {
         return new Version(1, 5, 0);
     }

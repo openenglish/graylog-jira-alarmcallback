@@ -44,6 +44,7 @@ import org.graylog2.plugin.configuration.fields.ConfigurationField;
 import org.graylog2.plugin.configuration.fields.TextField;
 import org.graylog2.plugin.streams.Stream;
 import org.graylog2.plugin.streams.StreamRule;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,11 +64,23 @@ public class JiraAlarmCallback implements AlarmCallback {
   public static final String CK_JIRA_PRIORITY         = "jira_priority";
   public static final String CK_JIRA_COMPONENTS       = "jira_components";
   public static final String CK_JIRA_MESSAGE_TEMPLATE = "jira_message_template";
+  public static final String CK_JIRA_MD5_CUSTOM_FIELD = "jira_md5_custom_field";
   public static final String CK_JIRA_MD5_HASH_PATTERN = "jira_md5_hash_pattern";
   public static final String CK_JIRA_MD5_FILTER_QUERY = "jira_md5_filter_query";
   
   public static final String CK_GRAYLOG_URL           = "graylog_url";
   public static final String CK_MESSAGE_REGEX         = "message_regex";
+  
+  // Validation rules for config check
+  private static final List<String> SENSITIVE_CONFIGURATION_KEYS = ImmutableList.of(CK_JIRA_PASSWORD);
+
+  private static final String[] CONFIGURATION_KEYS_MANDATORY = new String[] {
+      CK_JIRA_INSTANCE_URL, CK_JIRA_USERNAME, CK_JIRA_PASSWORD, CK_JIRA_PROJECT_KEY, CK_JIRA_ISSUE_TYPE
+  };
+
+  private static final String[] CONFIGURATION_KEYS_URL_VALIDATION = new String[] {
+      CK_JIRA_INSTANCE_URL, CK_GRAYLOG_URL
+  };
   
   // The default template for JIRA messages
   private static final String CONST_JIRA_MESSAGE_TEMPLATE = "*Stream title:* \n [STREAM_TITLE]\n\n"
@@ -93,8 +106,7 @@ public class JiraAlarmCallback implements AlarmCallback {
 
   // The plugin configuration
   private Configuration configuration;
-
-  private static final List<String> SENSITIVE_CONFIGURATION_KEYS = ImmutableList.of(CK_JIRA_PASSWORD);
+  
   
   /* This is called once at the very beginning of the lifecycle of this plugin. It is common practice to
    * store the Configuration as a private member for later access.
@@ -123,6 +135,7 @@ public class JiraAlarmCallback implements AlarmCallback {
         configuration.getString(CK_JIRA_USERNAME),
         configuration.getString(CK_JIRA_PASSWORD),
         configuration.getString(CK_JIRA_MD5_FILTER_QUERY),
+        configuration.getString(CK_JIRA_MD5_CUSTOM_FIELD),
         getJIRAMessageDigest (stream, result)), stream, result);
   }
   
@@ -144,33 +157,33 @@ public class JiraAlarmCallback implements AlarmCallback {
   @Override
   public ConfigurationRequest getRequestedConfiguration () {
       final ConfigurationRequest configurationRequest = new ConfigurationRequest();
-
+      
       configurationRequest.addField (new TextField (
           CK_JIRA_INSTANCE_URL, "JIRA Instance URL", "", "JIRA server URL.",
           ConfigurationField.Optional.NOT_OPTIONAL));
       
       configurationRequest.addField (new TextField (
-          CK_JIRA_USERNAME, "Username", "", "Username to login to JIRA.",
+          CK_JIRA_USERNAME, "JIRA username", "", "Username to login to JIRA and create issues.",
           ConfigurationField.Optional.NOT_OPTIONAL));
       
       configurationRequest.addField (new TextField (
-          CK_JIRA_PASSWORD, "Password", "", "Password to login to JIRA.",
+          CK_JIRA_PASSWORD, "JIRA password", "", "Password to login to JIRA.",
           ConfigurationField.Optional.NOT_OPTIONAL, TextField.Attribute.IS_PASSWORD));
       
       configurationRequest.addField (new TextField (
-          CK_JIRA_PROJECT_KEY, "Project Key", "", "Project under which the issue will be created.",
+          CK_JIRA_PROJECT_KEY, "JIRA project Key", "", "Project under which the issue will be created.",
           ConfigurationField.Optional.NOT_OPTIONAL));
       
       configurationRequest.addField (new TextField (
-          CK_JIRA_ISSUE_TYPE, "Issue Type", "Bug", "Type of issue.", 
+          CK_JIRA_ISSUE_TYPE, "JIRA issue Type", "Bug", "Type of issue.", 
           ConfigurationField.Optional.NOT_OPTIONAL));
       
       configurationRequest.addField (new TextField (
-          CK_JIRA_MESSAGE_TEMPLATE, "Message template", CONST_JIRA_MESSAGE_TEMPLATE.replaceAll("\n", "\\\n"), "Message template for JIRA",
+          CK_JIRA_MESSAGE_TEMPLATE, "JIRA message template", CONST_JIRA_MESSAGE_TEMPLATE.replaceAll("\n", "\\\n"), "Message template for JIRA",
           ConfigurationField.Optional.NOT_OPTIONAL));
 
       configurationRequest.addField (new TextField (
-          CK_JIRA_TITLE_TEMPLATE, "JIRA task title", CONST_JIRA_TITLE_TEMPLATE, "Title template for JIRA tasks",
+          CK_JIRA_TITLE_TEMPLATE, "JIRA issue title template", CONST_JIRA_TITLE_TEMPLATE, "Title template for JIRA tasks",
           ConfigurationField.Optional.NOT_OPTIONAL));
       
       configurationRequest.addField (new TextField (
@@ -178,15 +191,15 @@ public class JiraAlarmCallback implements AlarmCallback {
           ConfigurationField.Optional.NOT_OPTIONAL));
       
       configurationRequest.addField (new TextField (
-          CK_JIRA_PRIORITY, "Issue Priority", "Minor", "Priority of the issue.", 
+          CK_JIRA_PRIORITY, "JIRA Issue Priority", "Minor", "Priority of the issue.", 
           ConfigurationField.Optional.OPTIONAL));
       
       configurationRequest.addField (new TextField (
-          CK_JIRA_LABELS, "Labels", "graylog", "List of comma-separated labels to add to this issue.",
+          CK_JIRA_LABELS, "JIRA Labels", "", "List of comma-separated labels to add to this issue - i.e. graylog",
           ConfigurationField.Optional.OPTIONAL));
       
       configurationRequest.addField (new TextField (
-          CK_JIRA_COMPONENTS, "Components", "", "List of comma-separated components to add to this issue.",
+          CK_JIRA_COMPONENTS, "JIRA Components", "", "List of comma-separated components to add to this issue.",
           ConfigurationField.Optional.OPTIONAL));
       
       configurationRequest.addField (new TextField (
@@ -195,6 +208,10 @@ public class JiraAlarmCallback implements AlarmCallback {
       
       configurationRequest.addField (new TextField (
           CK_JIRA_MD5_HASH_PATTERN, "JIRA MD5 pattern", "", "Pattern to construct MD5. Example: " + CONST_JIRA_MD5_TEMPLATE,
+          ConfigurationField.Optional.OPTIONAL));
+      
+      configurationRequest.addField (new TextField (
+          CK_JIRA_MD5_CUSTOM_FIELD, "JIRA MD5 custom field", "", "Custom field name for the MD5 hash, this will be in the format of customfield_####. If not set, we will try and find it",
           ConfigurationField.Optional.OPTIONAL));
       
       configurationRequest.addField (new TextField (
@@ -227,48 +244,27 @@ public class JiraAlarmCallback implements AlarmCallback {
   @Override
   public void checkConfiguration () throws ConfigurationException {
     
-    if (!configuration.stringIsSet(CK_JIRA_INSTANCE_URL)) {
-      throw new ConfigurationException (CK_JIRA_INSTANCE_URL + " is mandatory and must not be empty.");
-    }
-
-    if (configuration.stringIsSet(CK_JIRA_INSTANCE_URL) && !configuration.getString(CK_JIRA_INSTANCE_URL).equals("null")) {
-      try {
-        final URI jiraUri = new URI(configuration.getString(CK_JIRA_INSTANCE_URL));
-        if (!"http".equals(jiraUri.getScheme()) && !"https".equals(jiraUri.getScheme())) {
-          throw new ConfigurationException (CK_JIRA_INSTANCE_URL + " must be a valid HTTP or HTTPS URL.");
-        }
-      } catch (URISyntaxException e) {
-        throw new ConfigurationException ("Couldn't parse " + CK_JIRA_INSTANCE_URL + " correctly.", e);
+    // Check if we have all mandatory keys
+    for (String key : CONFIGURATION_KEYS_MANDATORY) {
+      if (!configuration.stringIsSet(key)) {
+          throw new ConfigurationException(key + " is mandatory and must not be empty.");
       }
     }
-
-    if (!configuration.stringIsSet(CK_JIRA_USERNAME)) {
-      throw new ConfigurationException (CK_JIRA_USERNAME + " is mandatory and must not be empty.");
-    }
-
-    if (!configuration.stringIsSet(CK_JIRA_PASSWORD)) {
-      throw new ConfigurationException (CK_JIRA_PASSWORD + " is mandatory and must not be empty.");
-    }
-
-    if (!configuration.stringIsSet(CK_JIRA_PROJECT_KEY)) {
-      throw new ConfigurationException (CK_JIRA_PROJECT_KEY + " is mandatory and must not be empty.");
-    }
-
-    if (!configuration.stringIsSet(CK_JIRA_ISSUE_TYPE)) {
-      throw new ConfigurationException (CK_JIRA_ISSUE_TYPE + " is mandatory and must not be empty.");
-    }
-
-    if (configuration.stringIsSet(CK_GRAYLOG_URL) && !configuration.getString(CK_GRAYLOG_URL).equals("null")) {
-      try {
-        final URI graylogUri = new URI(configuration.getString(CK_GRAYLOG_URL));
-        if (!"http".equals(graylogUri.getScheme()) && !"https".equals(graylogUri.getScheme())) {
-          throw new ConfigurationException (CK_GRAYLOG_URL + " must be a valid HTTP or HTTPS URL.");
+    
+    // Check if the provided URLs are valid
+    for (String key : CONFIGURATION_KEYS_URL_VALIDATION) {
+      if (configuration.stringIsSet(key) && !configuration.getString(key).equals("null")) {
+        try {
+          final URI configURI = new URI(configuration.getString(key));
+          if (!"http".equals(configURI.getScheme()) && !"https".equals(configURI.getScheme())) {
+            throw new ConfigurationException (key + " must be a valid HTTP or HTTPS URL.");
+          }
+        } catch (URISyntaxException e) {
+          throw new ConfigurationException ("Couldn't parse " + key + " correctly.", e);
         }
-      } catch (URISyntaxException e) {
-        throw new ConfigurationException ("Couldn't parse " + CK_GRAYLOG_URL + " correctly.", e);
       }
     }
- 
+    
   }
 
   /* Return a human readable name of this plugin.
@@ -303,7 +299,7 @@ public class JiraAlarmCallback implements AlarmCallback {
             JiraMessageRegex = lastMessage.getMessage().substring(matcher.start());
           }
         } catch (Exception ex) {
-          LOG.warn("[JIRA] Error in JIRA-issue MD5-MESSAGE_REGEX generation: " + ex.getMessage());
+          LOG.warn("Error in JIRA-issue MD5-MESSAGE_REGEX generation: " + ex.getMessage());
         }
       }
       
@@ -328,7 +324,7 @@ public class JiraAlarmCallback implements AlarmCallback {
           // We regex template fields which have not been replaced
           JiraMD5Content = JiraMD5Content.replaceAll("\\[LAST_MESSAGE\\.[^\\]]*\\]", "");
         } catch (Exception ex) {
-          LOG.warn("[JIRA] Error in JIRA-issue MD5-HASH_PATTERN generation: " + ex.getMessage());
+          LOG.warn("Error in JIRA-issue MD5-HASH_PATTERN generation: " + ex.getMessage());
         }
       }
       
@@ -344,13 +340,13 @@ public class JiraAlarmCallback implements AlarmCallback {
           m.update (JiraMD5Content.getBytes(), 0, JiraMD5Content.length());
           JiraMessageDigest = new BigInteger(1, m.digest()).toString(16);
         } catch (Exception ex) {
-          LOG.warn("[JIRA] Error in JIRA-issue MD5 generation (MD5-string=" + JiraMD5Content + "): " + ex.getMessage());
+          LOG.warn("Error in JIRA-issue MD5 generation (MD5-string=" + JiraMD5Content + "): " + ex.getMessage());
         }
       } else {
-        LOG.warn("[JIRA] Skipped MD5-hash creation, MD5-string is empty. Check your config");
+        LOG.warn("Skipped MD5-hash creation, MD5-string is empty. Check your config");
       }
     } else {
-      LOG.warn("[JIRA] Skipping JIRA-issue MD5 generation, alarmcallback did not provide a message");
+      LOG.warn("Skipping JIRA-issue MD5 generation, alarmcallback did not provide a message");
     }
 
     return JiraMessageDigest;
@@ -366,26 +362,26 @@ public class JiraAlarmCallback implements AlarmCallback {
 
     StringBuilder sb = new StringBuilder();
     
-    if (configuration.stringIsSet(CK_MESSAGE_REGEX) && !configuration.getString(CK_MESSAGE_REGEX).equals("null")) {
-      try {
-        if (!result.getMatchingMessages().isEmpty()) {
-          // get fields from last message only
-          MessageSummary lastMessage = result.getMatchingMessages().get(0);
-          
-          Map<String, Object> lastMessageFields = lastMessage.getFields();
-          
-          String strTitle = "[Alert] Graylog alert for stream: " + stream.getTitle();
+    try {
+      if (!result.getMatchingMessages().isEmpty()) {
+        // get fields from last message only
+        MessageSummary lastMessage = result.getMatchingMessages().get(0);
+        
+        Map<String, Object> lastMessageFields = lastMessage.getFields();
+        
+        String strTitle = "[Alert] Graylog alert for stream: " + stream.getTitle();
 
-          if (configuration.stringIsSet(CK_JIRA_TITLE_TEMPLATE) && !configuration.getString(CK_JIRA_TITLE_TEMPLATE).equals("null")) {
-            strTitle = configuration.getString(CK_JIRA_TITLE_TEMPLATE);
-          }
-          
-          strTitle = strTitle.replace("[LAST_MESSAGE.source]", lastMessage.getSource());
-          
-          for (Map.Entry<String, Object> arg : lastMessageFields.entrySet()) {
-            strTitle = strTitle.replace("[LAST_MESSAGE." + arg.getKey() + "]", arg.getValue().toString());
-          }
-
+        if (configuration.stringIsSet(CK_JIRA_TITLE_TEMPLATE) && !configuration.getString(CK_JIRA_TITLE_TEMPLATE).equals("null")) {
+          strTitle = configuration.getString(CK_JIRA_TITLE_TEMPLATE);
+        }
+        
+        strTitle = strTitle.replace("[LAST_MESSAGE.source]", lastMessage.getSource());
+        
+        for (Map.Entry<String, Object> arg : lastMessageFields.entrySet()) {
+          strTitle = strTitle.replace("[LAST_MESSAGE." + arg.getKey() + "]", arg.getValue().toString());
+        }
+        
+        if (configuration.stringIsSet(CK_MESSAGE_REGEX) && !configuration.getString(CK_MESSAGE_REGEX).equals("null")) {
           Matcher matcher = Pattern.compile(configuration.getString(CK_MESSAGE_REGEX)).matcher(lastMessage.getMessage());
           
           if (matcher.find()) {
@@ -395,16 +391,16 @@ public class JiraAlarmCallback implements AlarmCallback {
               strTitle = "[Graylog] " + matcher.group();
             }
           }
-          
-          // We regex template fields which have not been replaced
-          strTitle = strTitle.replaceAll("\\[LAST_MESSAGE\\.[^\\]]*\\]", "");
-          
-          sb.append(strTitle);
         }
-      } catch (Exception ex) {
-        ; // can not do anything - we skip
-        LOG.error("[JIRA] Error in building title: " + ex.getMessage());
+        
+        // We regex template fields which have not been replaced
+        strTitle = strTitle.replaceAll("\\[LAST_MESSAGE\\.[^\\]]*\\]", "");
+        
+        sb.append(strTitle);
       }
+    } catch (Exception ex) {
+      ; // can not do anything - we skip
+      LOG.error("Error in building title: " + ex.getMessage());
     }
     
     if (sb.length() == 0) {

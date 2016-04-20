@@ -81,6 +81,8 @@ Configuration
   * Create a MD5 consisting of message regex and message source: __[LAST_MESSAGE.source][MESSAGE_REGEX]__
   * Create a MD5 consisting of fields from the message: __[LAST_MESSAGE.source][LAST_MESSAGE.errorCode][LAST_MESSAGE.tags][LAST_MESSAGE.type]__
   * If a specified field does not exist in the last message, it will be skipped as part of the MD5 generation
+* __JIRA MD5 custom field__: The JIRA custom-field name (typically called `customfield_####`. If the field is not set, the plugin will search the JIRA tasks meta-data for the `graylog_md5` and then use the defined custom-field automatically. It is preferred to specify the custom-field to avoid giving the JIRA user edit-permissions (and to also avoid another JIRA lookup call)
+  * You can get the custom-field id via the JIRA interface or by calling https://MYJIRA.SERVER.COM/rest/api/2/issue/[ISSUE_KEY]/editmeta and then search for `graylog_md5`. 
 * __JIRA duplicate filter query__: An optional filter query which is used when searching for the MD5 field in JIRA. The filter query must contain the `AND` term and can include any valid JQL - i.e. `AND Status not in (Closed, Done, Resolved)`.  
 
 ### Callback examples
