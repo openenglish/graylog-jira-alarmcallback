@@ -11,9 +11,11 @@ import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
 import net.sf.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.graylog2.plugin.alarms.AlertCondition;
@@ -41,6 +43,7 @@ public class JiraIssueClient {
   private final String JIRAMD5CustomFieldName;
   private final String JIRADuplicateIssueFilterQuery;
   
+  private final Map<String, String> JIRAGraylogMapping;
   private final String JIRAMessageDigest;
   private JiraClient jiraClient = null;
 
@@ -48,7 +51,7 @@ public class JiraIssueClient {
   public JiraIssueClient (final String JIRAProjectKey, final String JIRATitle, final String JIRADescription, 
       final String JIRALabels, final String JIRAIssueType, final String JIRAComponents, final String JIRAPriority, 
       final String JIRAServerURL, final String JIRAUserName, final String JIRAPassword, final String JIRADuplicateIssueFilterQuery,
-      final String JIRAMD5CustomFieldName, final String JIRAMessageDigest) {
+      final String JIRAMD5CustomFieldName, final Map<String, String> JIRAGraylogMapping, final String JIRAMessageDigest) {
     
     this.JIRAProjectKey = JIRAProjectKey;
     this.JIRATitle = JIRATitle;
@@ -60,6 +63,7 @@ public class JiraIssueClient {
     this.JIRAServerURL = JIRAServerURL;
     this.JIRAUserName = JIRAUserName;
     this.JIRAPassword = JIRAPassword;
+    this.JIRAGraylogMapping = JIRAGraylogMapping;
     this.JIRAMessageDigest = JIRAMessageDigest;
     this.JIRAMD5CustomFieldName = JIRAMD5CustomFieldName;
     this.JIRADuplicateIssueFilterQuery = JIRADuplicateIssueFilterQuery;
@@ -124,6 +128,7 @@ public class JiraIssueClient {
    * @return
    * @throws Exception
    */
+  @SuppressWarnings("serial")
   public void createJIRAIssue () throws AlarmCallbackException {
 
     try {
@@ -175,6 +180,23 @@ public class JiraIssueClient {
       
       // add description - we add this last, as the description could have been modified due to the MD5 inlining above
       fluentIssueCreate.field(Field.DESCRIPTION, strJIRADescription);
+      
+      // append auto-mapped fields
+      if (JIRAGraylogMapping != null && !JIRAGraylogMapping.isEmpty()) {
+        for (final Map.Entry<String, String> arg : JIRAGraylogMapping.entrySet()) {
+          if (StringUtils.isNotBlank(arg.getKey()) && StringUtils.isNotBlank(arg.getValue().toString())) {
+            String JIRAFieldName = arg.getKey();
+            Object JIRAFiedValue = arg.getValue().toString();
+            if (JIRAFieldName.endsWith("#i")) {
+              JIRAFieldName = JIRAFieldName.substring(0, JIRAFieldName.length() - 2);
+              JIRAFiedValue = new ArrayList<String>() {{ add(arg.getValue().toString()); }};
+            }
+            
+            LOG.info("JIRA/Graylog automap - JIRA-key=" + JIRAFieldName + ", value=" + JIRAFiedValue.toString());
+            fluentIssueCreate.field(JIRAFieldName, JIRAFiedValue);
+          }
+        }
+      }
       
       // finally create the issue
       Issue newIssue = fluentIssueCreate.execute();

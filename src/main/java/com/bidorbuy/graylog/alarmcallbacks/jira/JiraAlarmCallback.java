@@ -68,6 +68,7 @@ public class JiraAlarmCallback implements AlarmCallback {
   public static final String CK_JIRA_MD5_CUSTOM_FIELD = "jira_md5_custom_field";
   public static final String CK_JIRA_MD5_HASH_PATTERN = "jira_md5_hash_pattern";
   public static final String CK_JIRA_MD5_FILTER_QUERY = "jira_md5_filter_query";
+  public static final String CK_JIRA_GRAYLOG_MAPPING  = "jira_graylog_message_field_mapping";
   
   public static final String CK_GRAYLOG_URL           = "graylog_url";
   public static final String CK_MESSAGE_REGEX         = "message_regex";
@@ -137,6 +138,7 @@ public class JiraAlarmCallback implements AlarmCallback {
         configuration.getString(CK_JIRA_PASSWORD),
         configuration.getString(CK_JIRA_MD5_FILTER_QUERY),
         configuration.getString(CK_JIRA_MD5_CUSTOM_FIELD),
+        buildJIRAGraylogMapping(stream, result),
         getJIRAMessageDigest (stream, result)), stream, result);
   }
   
@@ -218,6 +220,12 @@ public class JiraAlarmCallback implements AlarmCallback {
       configurationRequest.addField (new TextField (
           CK_JIRA_MD5_FILTER_QUERY, "JIRA duplicate filter query", "", "Additional filter query to check for duplicates. Example: " + CONST_JIRA_MD5_FILTER_QUERY_TEMPLATE,
           ConfigurationField.Optional.OPTIONAL));
+      
+      configurationRequest.addField (new TextField (
+          CK_JIRA_GRAYLOG_MAPPING, "JIRA/Graylog field mapping", "", "List of comma-separated Graylog/JIRA mapping fields to automatically map Graylog message fields into JIRA",
+          ConfigurationField.Optional.OPTIONAL));
+      
+      
       
       return configurationRequest;
   }
@@ -498,4 +506,40 @@ public class JiraAlarmCallback implements AlarmCallback {
     return sb.toString();
   }
 
+  /**
+   * Build up a list of JIRA/Graylog field mappings
+   * @param stream
+   * @param result
+   * @return
+   */
+  private Map<String, String> buildJIRAGraylogMapping (final Stream stream, final AlertCondition.CheckResult result) {
+
+    Map<String, String> JIRAFieldMapping = new HashMap<String, String>();
+    
+    if (configuration.stringIsSet(CK_JIRA_GRAYLOG_MAPPING) && !configuration.getString(CK_JIRA_GRAYLOG_MAPPING).equals("null") && !result.getMatchingMessages().isEmpty()) {
+      try {
+        // get fields from last message only
+        MessageSummary lastMessage = result.getMatchingMessages().get(0);
+        
+        String[] mappingPairs = StringUtils.split(configuration.getString(CK_JIRA_GRAYLOG_MAPPING), ',');
+        
+        if (mappingPairs != null && mappingPairs.length > 0) {
+          for (String mappingString : mappingPairs) {
+              String[] mapping = StringUtils.split(mappingString, '=');
+              
+              if (mapping.length == 2 && lastMessage.hasField(mapping[0])) {
+                Object test = lastMessage.getField(mapping[0]);
+                JIRAFieldMapping.put(mapping[1], test.toString());
+              }
+          }
+        }
+      } catch (Exception ex) {
+        ; // can not do anything - we skip
+        LOG.error("Error in generating JIRA/Graylog mapping " + ex.getMessage());
+      }
+    }
+    
+    return JIRAFieldMapping;
+  }  
+  
 }

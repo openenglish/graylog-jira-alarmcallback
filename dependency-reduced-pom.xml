@@ -4,7 +4,7 @@
   <groupId>com.bidorbuy.graylog.alarmcallbacks.jira</groupId>
   <artifactId>graylog-plugin-jira</artifactId>
   <name>${project.artifactId}</name>
-  <version>1.0.6</version>
+  <version>1.0.7</version>
   <description>A Graylog alarm callback plugin that integrates Graylog into JIRA.</description>
   <url>https://github.com/magicdude4eva/graylog-jira-alarmcallback</url>
   <developers>
