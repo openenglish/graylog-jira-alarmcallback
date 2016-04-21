@@ -35,6 +35,7 @@ import java.util.*;
 import java.util.regex.*;
 
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.graylog2.plugin.MessageSummary;
 import org.graylog2.plugin.Tools;
 import org.graylog2.plugin.alarms.AlertCondition;
@@ -83,7 +84,7 @@ public class JiraAlarmCallback implements AlarmCallback {
   };
   
   // The default template for JIRA messages
-  private static final String CONST_JIRA_MESSAGE_TEMPLATE = "*Stream title:* \n [STREAM_TITLE]\n\n"
+  private static final String CONST_JIRA_MESSAGE_TEMPLATE = "[STREAM_RESULT]\n\n *Stream title:* \n [STREAM_TITLE]\n\n"
       + " *Stream URL:* \n [STREAM_URL]\n\n"
       + " *Stream rules:* \n [STREAM_RULES]\n\n"
       + " *Alert triggered at:* \n [ALERT_TRIGGERED_AT]\n\n"
@@ -329,12 +330,12 @@ public class JiraAlarmCallback implements AlarmCallback {
       }
       
       // We default the extracted message as the template
-      if (JiraMD5Content == null || JiraMD5Content.isEmpty()) {
+      if (StringUtils.isBlank(JiraMD5Content)) {
         JiraMD5Content = JiraMessageRegex;
       }
       
       // Create the MD5 from the template
-      if (JiraMD5Content != null && !JiraMD5Content.isEmpty()) {
+      if (StringUtils.isNotBlank(JiraMD5Content)) {
         try {
           MessageDigest m = MessageDigest.getInstance("MD5");
           m.update (JiraMD5Content.getBytes(), 0, JiraMD5Content.length());
@@ -451,12 +452,12 @@ public class JiraAlarmCallback implements AlarmCallback {
     strMessage = strMessage.replace("[STREAM_TITLE]", stream.getTitle());
     strMessage = strMessage.replace("[STREAM_URL]", buildStreamURL(configuration.getString(CK_GRAYLOG_URL), stream));
     strMessage = strMessage.replace("[STREAM_RULES]", buildStreamRules(stream));
+    strMessage = strMessage.replace("[STREAM_RESULT]", result.getResultDescription());
     strMessage = strMessage.replace("[ALERT_TRIGGERED_AT]", result.getTriggeredAt().toString());
     strMessage = strMessage.replace("[ALERT_TRIGGERED_CONDITION]", result.getTriggeredCondition().toString());
     
     // create final string
     StringBuilder sb = new StringBuilder();
-    sb.append(result.getResultDescription());
     sb.append("\n\n");
     sb.append(strMessage).append("\n\n");
     

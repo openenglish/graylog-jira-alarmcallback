@@ -6,7 +6,7 @@
 
     <groupId>com.bidorbuy.graylog.alarmcallbacks.jira</groupId>
     <artifactId>graylog-plugin-jira</artifactId>
-    <version>1.0.5</version>
+    <version>1.0.6</version>
     <packaging>jar</packaging>
 
     <name>${project.artifactId}</name>

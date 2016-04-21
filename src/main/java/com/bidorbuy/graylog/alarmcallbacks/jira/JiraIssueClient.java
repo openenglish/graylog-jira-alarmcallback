@@ -11,11 +11,11 @@ import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
 import net.sf.json.JSONObject;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.graylog2.plugin.alarms.AlertCondition;
 import org.graylog2.plugin.alarms.callbacks.AlarmCallbackException;
 import org.graylog2.plugin.streams.Stream;
@@ -86,7 +86,7 @@ public class JiraIssueClient {
 
     boolean bDuplicateIssue = false;
 
-    if (JIRAMessageDigest == null || JIRAMessageDigest.isEmpty()) {
+    if (StringUtils.isBlank(JIRAMessageDigest)) {
       return false;
     }
 
@@ -101,10 +101,10 @@ public class JiraIssueClient {
       if (srJiraIssues != null && srJiraIssues.issues != null && srJiraIssues.issues.isEmpty() == false) {
         bDuplicateIssue = true;
         LOG.info("There " + (srJiraIssues.issues.size() > 1 ? "are " + srJiraIssues.issues.size() + " issues" : "is one issue") + " with MD5=" + JIRAMessageDigest + 
-            (JIRADuplicateIssueFilterQuery != null && !JIRADuplicateIssueFilterQuery.isEmpty() ? " and filter-query='" + JIRADuplicateIssueFilterQuery + "'" : ""));
+            (StringUtils.isNotBlank(JIRADuplicateIssueFilterQuery) ? " and filter-query='" + JIRADuplicateIssueFilterQuery + "'" : ""));
       } else {
         LOG.info("No existing open JIRA issue for MD5=" + JIRAMessageDigest + 
-            (JIRADuplicateIssueFilterQuery != null && !JIRADuplicateIssueFilterQuery.isEmpty() ? " and filter-query='" + JIRADuplicateIssueFilterQuery + "'" : ""));
+            (StringUtils.isNotBlank(JIRADuplicateIssueFilterQuery) ? " and filter-query='" + JIRADuplicateIssueFilterQuery + "'" : ""));
       }
     } catch (JiraException ex) {
       LOG.error("Error searching for JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""));
@@ -127,8 +127,8 @@ public class JiraIssueClient {
   public void createJIRAIssue () throws AlarmCallbackException {
 
     try {
-      List<String> labels     = (JIRALabels     != null ? Arrays.asList(JIRALabels.split("\\,")) : new ArrayList<String>());
-      List<String> components = (JIRAComponents != null ? Arrays.asList(JIRAComponents.split("\\,")) : new ArrayList<String>());
+      List<String> labels     = (StringUtils.isNotBlank(JIRALabels)     ? Arrays.asList(StringUtils.split(JIRALabels, ',')) : null);
+      List<String> components = (StringUtils.isNotBlank(JIRAComponents) ? Arrays.asList(StringUtils.split(JIRAComponents, ',')) : null);
       
       // We create the base issue and then chain all the required fields
       FluentCreate fluentIssueCreate = jiraClient.createIssue(JIRAProjectKey, JIRAIssueType);
@@ -143,28 +143,28 @@ public class JiraIssueClient {
       fluentIssueCreate.field(Field.SUMMARY, JIRATitle);
       
       // add labels
-      if (labels.size() > 0) {
+      if (labels != null && !labels.isEmpty()) {
         fluentIssueCreate.field(Field.LABELS, labels);
       }
       
       // add components
-      if (components.size() > 0) {
+      if (components != null && !components.isEmpty()) {
         fluentIssueCreate.field(Field.COMPONENTS, components);
       }
       
       String strJIRADescription = JIRADescription;
       
       // add the MD5 digest
-      if (JIRAMessageDigest != null && !JIRAMessageDigest.isEmpty()) {
+      if (StringUtils.isNotBlank(JIRAMessageDigest)) {
         String md5Field = JIRAMD5CustomFieldName;
         
         // if we do not have a configured custom-field, we will try and find it from meta-data
         // this requires that the JIRA user has edit-permissions
-        if (md5Field == null || md5Field.isEmpty()) {
+        if (StringUtils.isBlank(md5Field)) {
           md5Field = getJIRACustomMD5Field();
         }
         
-        if (md5Field != null && !md5Field.isEmpty()) {
+        if (StringUtils.isNotBlank(md5Field)) {
           fluentIssueCreate.field(md5Field, JIRAMessageDigest);
         } else {
           // If there is no MD5 field defined, we inline the MD5-digest into the JIRA description
@@ -175,7 +175,6 @@ public class JiraIssueClient {
       
       // add description - we add this last, as the description could have been modified due to the MD5 inlining above
       fluentIssueCreate.field(Field.DESCRIPTION, strJIRADescription);
-      
       
       // finally create the issue
       Issue newIssue = fluentIssueCreate.execute();

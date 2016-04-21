@@ -70,6 +70,7 @@ Configuration
   * __[STREAM_TITLE]__: Title of the stream
   * __[STREAM_URL]__: URL to the stream
   * __[STREAM_RULES]__: Stream rules triggered
+  * __[STREAM_RESULT]__: Includes stream-result description i.e. `'Stream had 7 messages in the last 30 minutes with trigger condition more than 5 messages. (Current grace time: 0 minutes)'`
   * __[ALERT_TRIGGERED_AT]__: Timestamp when alert was triggered
   * __[ALERT_TRIGGERED_CONDITION]__: Conditions triggering the alert
   * __[LAST_MESSAGE.source]__: If a message is present, the placeholder will be replaced with the source origin of the message
