@@ -6,6 +6,8 @@ ___
 
 A Graylog alarm callback plugin that integrates [Graylog](https://www.graylog.org/) into [JIRA](https://www.atlassian.com/software/jira/).
 
+:scream: **IMPORTANT**: Graylog 2.0.2 introduces a single classloader for plugins which has now resulted in the Jira plugin breaking due to the map-plugin shipping an outdated version of httpclient. There is no real clean way to fix this other than hoping that Graylog developers will come up with a cleaner solution. I unfortunatley do not have the time to attempt to manually hack this plugin to avoid class-conflicts, so my suggestion is to remove the map-plugin.
+
 ## Main features
 * Templating of JIRA issue title and JIRA message via place holders
 * Embed a MD5 hash into the JIRA issue via custom-field or embed within JIRA-message to prevent duplicate JIRA issues
