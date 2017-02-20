@@ -9,7 +9,9 @@ ___
 
 A Graylog alarm callback plugin that integrates [Graylog](https://www.graylog.org/) into [JIRA](https://www.atlassian.com/software/jira/).
 
-:scream: **IMPORTANT**: Graylog 2.0.2 introduces a single classloader for plugins which has now resulted in the Jira plugin breaking due to the map-plugin shipping an outdated version of httpclient. There is no real clean way to fix this other than hoping that Graylog developers will come up with a cleaner solution. I unfortunatley do not have the time to attempt to manually hack this plugin to avoid class-conflicts, so my suggestion is to remove the map-plugin.
+:scream: **IMPORTANT**: When upgrading to Graylog 2.2.0, the Manage Alert Conditions seem to have dropped/defaulted. Click on "Alerts" and verify that your settings are still correct. In my case, the message count condition was completely gone.
+
+:scream: **IMPORTANT**: ~~Graylog 2.0.2 introduces a single classloader for plugins which has now resulted in the Jira plugin breaking due to the map-plugin shipping an outdated version of httpclient. There is no real clean way to fix this other than hoping that Graylog developers will come up with a cleaner solution. I unfortunatley do not have the time to attempt to manually hack this plugin to avoid class-conflicts, so my suggestion is to remove the map-plugin.~~ This was fixed in Graylog 2.1.3.
 
 ## Main features
 * Templating of JIRA issue title and JIRA message via place holders
