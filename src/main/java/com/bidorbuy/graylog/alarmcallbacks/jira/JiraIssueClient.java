@@ -70,14 +70,20 @@ public class JiraIssueClient {
   }
   
   public void trigger (final Stream stream, final AlertCondition.CheckResult checkResult) throws AlarmCallbackException {
-    
-    BasicCredentials creds = new BasicCredentials (JIRAUserName, JIRAPassword);
-    
-    jiraClient = new JiraClient(JIRAServerURL, creds);
-    
-    if (isDuplicateJiraIssue() == false) {
-      createJIRAIssue();
+
+    try {
+      BasicCredentials creds = new BasicCredentials (JIRAUserName, JIRAPassword);
+  
+      jiraClient = new JiraClient(JIRAServerURL, creds);
+  
+      if (isDuplicateJiraIssue() == false) {
+        createJIRAIssue();
+      }
+    } catch (Throwable ex) {
+      LOG.error("Error in trigger function" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
+      throw ex;
     }
+    
  }
   
   /**
@@ -111,10 +117,10 @@ public class JiraIssueClient {
             (StringUtils.isNotBlank(JIRADuplicateIssueFilterQuery) ? " and filter-query='" + JIRADuplicateIssueFilterQuery + "'" : ""));
       }
     } catch (JiraException ex) {
-      LOG.error("Error searching for JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""));
+      LOG.error("Error searching for JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
       throw new AlarmCallbackException("Failed searching for duplicate issue", ex);
-    } catch (Exception ex) {
-      LOG.error("Error searching for JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""));
+    } catch (Throwable ex) {
+      LOG.error("Error searching for JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
       throw new AlarmCallbackException("Failed searching for duplicate issue", ex);
     }
 
@@ -203,7 +209,10 @@ public class JiraIssueClient {
       
       LOG.info("Created new issue " + newIssue.getKey() + " for project " + JIRAProjectKey);
     } catch (JiraException ex) {
-      LOG.error("Error creating JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""));
+      LOG.error("Error creating JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
+      throw new AlarmCallbackException("Failed creating new issue", ex);
+    } catch (Throwable ex) {
+      LOG.error("Error creating JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
       throw new AlarmCallbackException("Failed creating new issue", ex);
     }
 
@@ -239,7 +248,7 @@ public class JiraIssueClient {
         }
       }      
     } catch (JiraException ex) {
-      LOG.error("Error getting JIRA custom MD5 field=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""));
+      LOG.error("Error getting JIRA custom MD5 field=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
       throw new AlarmCallbackException("Failed retrieving MD5-field", ex);
     }
 

@@ -6,7 +6,7 @@
 
     <groupId>com.bidorbuy.graylog.alarmcallbacks.jira</groupId>
     <artifactId>graylog-plugin-jira</artifactId>
-    <version>1.0.7</version>
+    <version>1.0.8</version>
     <packaging>jar</packaging>
 
     <name>${project.artifactId}</name>
@@ -25,7 +25,7 @@
       <email>gerd@naschenweng.info</email>
     </developer>
   </developers>
-
+  
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.7</maven.compiler.source>
@@ -40,39 +40,12 @@
             <artifactId>graylog2-plugin</artifactId>
             <version>${graylog2.version}</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-        	<groupId>net.rcarz</groupId>
-        	<artifactId>jira-client</artifactId>
-        	<version>0.5</version>
-        	<exclusions>
-        		<exclusion>
-        			<artifactId>junit</artifactId>
-        			<groupId>junit</groupId>
-        		</exclusion>
-        		<exclusion>
-        			<artifactId>commons-logging</artifactId>
-        			<groupId>commons-logging</groupId>
-        		</exclusion>
-        		<exclusion>
-        			<artifactId>commons-lang</artifactId>
-        			<groupId>commons-lang</groupId>
-        		</exclusion>
-        		<exclusion>
-        			<artifactId>commons-collections</artifactId>
-        			<groupId>commons-collections</groupId>
-        		</exclusion>
-        		<exclusion>
-        			<artifactId>commons-codec</artifactId>
-        			<groupId>commons-codec</groupId>
-        		</exclusion>
-        	</exclusions>
+            <exclusions>
+            	<exclusion>
+            		<artifactId>joda-time</artifactId>
+            		<groupId>joda-time</groupId>
+            	</exclusion>
+            </exclusions>
         </dependency>
         <dependency>
         	<groupId>org.apache.commons</groupId>
@@ -80,6 +53,60 @@
         	<version>3.0</version>
         	<optional>true</optional>
         	<scope>provided</scope>
+        </dependency>
+
+        <dependency>
+        	<groupId>net.rcarz</groupId>
+        	<artifactId>jira-client</artifactId>
+        	<version>0.5</version>
+        	<exclusions>
+        		<exclusion>
+        			<artifactId>httpmime</artifactId>
+        			<groupId>org.apache.httpcomponents</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>httpclient</artifactId>
+        			<groupId>org.apache.httpcomponents</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>commons-httpclient</artifactId>
+        			<groupId>commons-httpclient</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>commons-beanutils</artifactId>
+        			<groupId>commons-beanutils</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>mockito-all</artifactId>
+        			<groupId>org.mockito</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>junit</artifactId>
+        			<groupId>junit</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>commons-lang</artifactId>
+        			<groupId>commons-lang</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>commons-logging</artifactId>
+        			<groupId>commons-logging</groupId>
+        		</exclusion>
+        		<exclusion>
+        			<artifactId>commons-collections</artifactId>
+        			<groupId>commons-collections</groupId>
+        		</exclusion>
+        	</exclusions>
+        </dependency>
+        <dependency>
+        	<groupId>org.apache.httpcomponents</groupId>
+        	<artifactId>httpclient</artifactId>
+        	<version>4.5.2</version>
+        </dependency>
+        <dependency>
+        	<groupId>org.apache.httpcomponents</groupId>
+        	<artifactId>httpmime</artifactId>
+        	<version>4.5.2</version>
         </dependency>
     </dependencies>
 
