@@ -1,5 +1,5 @@
-/Users/GNaschenweng/Documents/Development/MyEclipseIDEWorkSpaces/Graylog Jira Callback/src/main/java/com/bidorbuy/graylog/alarmcallbacks/jira/JiraAlarmCallback.java
-/Users/GNaschenweng/Documents/Development/MyEclipseIDEWorkSpaces/Graylog Jira Callback/src/main/java/com/bidorbuy/graylog/alarmcallbacks/jira/JiraIssueClient.java
-/Users/GNaschenweng/Documents/Development/MyEclipseIDEWorkSpaces/Graylog Jira Callback/src/main/java/com/bidorbuy/graylog/alarmcallbacks/jira/JiraPluginMetadata.java
-/Users/GNaschenweng/Documents/Development/MyEclipseIDEWorkSpaces/Graylog Jira Callback/src/main/java/com/bidorbuy/graylog/alarmcallbacks/jira/JiraPlugin.java
-/Users/GNaschenweng/Documents/Development/MyEclipseIDEWorkSpaces/Graylog Jira Callback/src/main/java/com/bidorbuy/graylog/alarmcallbacks/jira/JiraPluginModule.java
+/Users/oeuser/Documents/Workspaces/graylog-jira-alarmcallback/src/main/java/com/bidorbuy/graylog/alarmcallbacks/jira/JiraIssueClient.java
+/Users/oeuser/Documents/Workspaces/graylog-jira-alarmcallback/src/main/java/com/bidorbuy/graylog/alarmcallbacks/jira/JiraAlarmCallback.java
+/Users/oeuser/Documents/Workspaces/graylog-jira-alarmcallback/src/main/java/com/bidorbuy/graylog/alarmcallbacks/jira/JiraPluginModule.java
+/Users/oeuser/Documents/Workspaces/graylog-jira-alarmcallback/src/main/java/com/bidorbuy/graylog/alarmcallbacks/jira/JiraPlugin.java
+/Users/oeuser/Documents/Workspaces/graylog-jira-alarmcallback/src/main/java/com/bidorbuy/graylog/alarmcallbacks/jira/JiraPluginMetadata.java
