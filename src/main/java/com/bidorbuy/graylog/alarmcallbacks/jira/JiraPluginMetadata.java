@@ -48,12 +48,12 @@ public class JiraPluginMetadata implements PluginMetaData {
 
     @Override
     public String getAuthor() {
-        return "bidorbuy (pty) ltd, Gerd W. Naschenweng";
+        return "Open English (Percy Vega)";
     }
 
     @Override
     public URI getURL() {
-        return URI.create("https://github.com/magicdude4eva");
+        return URI.create("https://github.com/openenglish/graylog-jira-alarmcallback");
     }
 
     @Override
