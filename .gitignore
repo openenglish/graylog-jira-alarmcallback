@@ -1,2 +1,27 @@
-/target/
-/httpclient-4.3.2.jar
+# Generated folders
+bin/
+gen/
+out/
+build/
+lib/
+logs/
+target/
+
+
+# Eclipse project files
+.classpath
+.project
+# Eclipse generated folders
+.metadata/
+.settings/
+RemoteSystemsTempFiles/
+Servers/
+# IDEA project files
+.idea/
+*.iml
+# IDEA Old-style project files
+*.ipr
+*.iws
+# Android Studio
+local.properties
+app/
