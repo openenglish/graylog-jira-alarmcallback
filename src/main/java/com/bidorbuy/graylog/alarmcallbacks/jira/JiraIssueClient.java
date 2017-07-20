@@ -27,7 +27,7 @@ class JiraIssueClient {
     private static final Logger LOG = LoggerFactory.getLogger(JiraAlarmCallback.class);
 
     // The JIRA field-name for the MD5 - digest
-    private static final String CONST_GRAYLOGMD5_DIGEST = "graylog_md5";
+    private static final String GRAYLOG_MD5 = "graylog_md5";
 
     private final String JIRAServerURL;
     private final String JIRAUserName;
@@ -72,9 +72,9 @@ class JiraIssueClient {
     void trigger(final Stream stream, final AlertCondition.CheckResult checkResult) throws AlarmCallbackException {
 
         try {
-            BasicCredentials creds = new BasicCredentials(JIRAUserName, JIRAPassword);
+            BasicCredentials basicCredentials = new BasicCredentials(JIRAUserName, JIRAPassword);
 
-            jiraClient = new JiraClient(JIRAServerURL, creds);
+            jiraClient = new JiraClient(JIRAServerURL, basicCredentials);
 
             if (!isDuplicateJiraIssue()) {
                 createJIRAIssue();
@@ -101,7 +101,7 @@ class JiraIssueClient {
             // Search for duplicate issues
             Issue.SearchResult srJiraIssues = jiraClient.searchIssues("project = " + JIRAProjectKey
                             + (JIRADuplicateIssueFilterQuery != null && !JIRADuplicateIssueFilterQuery.isEmpty() ? " " + JIRADuplicateIssueFilterQuery + " " : "")
-                            + " AND (" + CONST_GRAYLOGMD5_DIGEST + " ~ \"" + JIRAMessageDigest + "\" OR"
+                            + " AND (" + GRAYLOG_MD5 + " ~ \"" + JIRAMessageDigest + "\" OR"
                             + " description ~ \"" + JIRAMessageDigest + "\")",
                     "id,key,summary", 1);
 
@@ -169,8 +169,8 @@ class JiraIssueClient {
                     fluentIssueCreate.field(md5Field, JIRAMessageDigest);
                 } else {
                     // If there is no MD5 field defined, we inline the MD5-digest into the JIRA description
-                    strJIRADescription = "\n\n" + CONST_GRAYLOGMD5_DIGEST + "=" + JIRAMessageDigest + "\n\n";
-                    LOG.warn("It is more efficient to configure '" + JiraAlarmCallback.CK_JIRA_MD5_CUSTOM_FIELD + "' for MD5-hashing instead of embedding the hash in the JIRA description!");
+                    strJIRADescription = "\n\n" + GRAYLOG_MD5 + "=" + JIRAMessageDigest + "\n\n";
+                    LOG.warn("It is more efficient to configure '" + JiraAlarmCallback.JIRA_MD5_CUSTOM_FIELD + "' for MD5-hashing instead of embedding the hash in the JIRA description!");
                 }
             }
 
@@ -214,7 +214,7 @@ class JiraIssueClient {
 
         String strJIRACustomMD5Field = null;
 
-        LOG.warn("It is more efficient to configure '" + JiraAlarmCallback.CK_JIRA_MD5_CUSTOM_FIELD + "' for MD5-hashing.");
+        LOG.warn("It is more efficient to configure '" + JiraAlarmCallback.JIRA_MD5_CUSTOM_FIELD + "' for MD5-hashing.");
 
         try {
             JSONObject customfields = Issue.getCreateMetadata(jiraClient.getRestClient(), JIRAProjectKey, JIRAIssueType);
@@ -224,7 +224,7 @@ class JiraIssueClient {
 
                 if (key.startsWith("customfield_")) {
                     JSONObject metaFields = customfields.getJSONObject(key);
-                    if (metaFields.has("name") && JiraIssueClient.CONST_GRAYLOGMD5_DIGEST.equalsIgnoreCase(metaFields.getString("name"))) {
+                    if (metaFields.has("name") && JiraIssueClient.GRAYLOG_MD5.equalsIgnoreCase(metaFields.getString("name"))) {
                         strJIRACustomMD5Field = key;
                         break;
                     }

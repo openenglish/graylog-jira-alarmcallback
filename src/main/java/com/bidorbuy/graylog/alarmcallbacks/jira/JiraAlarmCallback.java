@@ -58,38 +58,39 @@ public class JiraAlarmCallback implements AlarmCallback {
     private static final Logger LOG = LoggerFactory.getLogger(JiraAlarmCallback.class);
 
     // Configuration Constants
-    private static final String CK_JIRA_INSTANCE_URL = "jira_instance_url";
-    private static final String CK_JIRA_USERNAME = "jira_username";
-    private static final String CK_JIRA_PASSWORD = "jira_password";
-    private static final String CK_JIRA_PROJECT_KEY = "jira_project_key";
-    private static final String CK_JIRA_TITLE_TEMPLATE = "jira_title_template";
-    private static final String CK_JIRA_ISSUE_TYPE = "jira_issue_type";
-    private static final String CK_JIRA_LABELS = "jira_labels";
-    private static final String CK_JIRA_PRIORITY = "jira_priority";
-    private static final String CK_JIRA_COMPONENTS = "jira_components";
-    private static final String CK_JIRA_MESSAGE_TEMPLATE = "jira_message_template";
-    private static final String CK_JIRA_MD5_HASH_PATTERN = "jira_md5_hash_pattern";
-    private static final String CK_JIRA_MD5_FILTER_QUERY = "jira_md5_filter_query";
-    private static final String CK_JIRA_GRAYLOG_MAPPING = "jira_graylog_message_field_mapping";
+    private static final String JIRA_INSTANCE_URL = "jira_instance_url";
+    private static final String JIRA_USERNAME = "jira_username";
+    private static final String JIRA_PASSWORD = "jira_password";
+    private static final String JIRA_PROJECT_KEY = "jira_project_key";
+    private static final String JIRA_TITLE_TEMPLATE = "jira_title_template";
+    private static final String JIRA_ISSUE_TYPE = "jira_issue_type";
+    private static final String JIRA_LABELS = "jira_labels";
+    private static final String JIRA_PRIORITY = "jira_priority";
+    private static final String JIRA_COMPONENTS = "jira_components";
+    private static final String JIRA_MESSAGE_TEMPLATE = "jira_message_template";
+    private static final String JIRA_MD5_HASH_PATTERN = "jira_md5_hash_pattern";
+    private static final String JIRA_MD5_FILTER_QUERY = "jira_md5_filter_query";
+    private static final String JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING = "jira_graylog_message_field_mapping";
 
-    static final String CK_JIRA_MD5_CUSTOM_FIELD = "jira_md5_custom_field";
+    static final String JIRA_MD5_CUSTOM_FIELD = "jira_md5_custom_field";
 
-    private static final String CK_GRAYLOG_URL = "graylog_url";
-    private static final String CK_GRAYLOG_HISTOGRAM_TIME_SPAN = "graylog_histogram_time_span";
-    private static final String CK_MESSAGE_REGEX = "message_regex";
+    private static final String GRAYLOG_URL = "graylog_url";
+    private static final String GRAYLOG_HISTOGRAM_TIME_SPAN = "graylog_histogram_time_span";
+    private static final String MESSAGE_REGEX = "message_regex";
 
     // Validation rules for config check
-    private static final List<String> SENSITIVE_CONFIGURATION_KEYS = ImmutableList.of(CK_JIRA_PASSWORD);
+    private static final List<String> SENSITIVE_CONFIGURATION_KEYS = ImmutableList.of(JIRA_PASSWORD);
 
-    private static final String[] CONFIGURATION_KEYS_MANDATORY = new String[]{CK_JIRA_INSTANCE_URL, CK_JIRA_USERNAME, CK_JIRA_PASSWORD, CK_JIRA_PROJECT_KEY, CK_JIRA_ISSUE_TYPE};
-    private static final String[] CONFIGURATION_KEYS_URL_VALIDATION = new String[]{CK_JIRA_INSTANCE_URL, CK_GRAYLOG_URL};
+    private static final String[] CONFIGURATION_KEYS_MANDATORY = new String[]{JIRA_INSTANCE_URL, JIRA_USERNAME, JIRA_PASSWORD, JIRA_PROJECT_KEY, JIRA_ISSUE_TYPE};
+    private static final String[] CONFIGURATION_KEYS_URL_VALIDATION = new String[]{JIRA_INSTANCE_URL, GRAYLOG_URL};
+
+    // The message regex template used to extract content for an exception MD5
+    private static final String EXAMPLE_JIRA_MESSAGE_REGEX = "([a-zA-Z_.]+(?!.*Exception): .+)";
+    private static final String EXAMPLE_JIRA_MD5_TEMPLATE = "[MESSAGE_REGEX]";
+    private static final String EXAMPLE_JIRA_MD5_FILTER_QUERY_TEMPLATE = "AND Status not in (Closed, Done, Resolved)";
 
     // The default title template for JIRA messages
     private static final String DEFAULT_JIRA_TITLE_TEMPLATE = "Jira [MESSAGE_REGEX]";
-    // The message regex template used to extract content for an exception MD5
-    private static final String DEFAULT_JIRA_MESSAGE_REGEX = "([a-zA-Z_.]+(?!.*Exception): .+)";
-    private static final String DEFAULT_JIRA_MD5_TEMPLATE = "[MESSAGE_REGEX]";
-    private static final String DEFAULT_JIRA_MD5_FILTER_QUERY_TEMPLATE = "AND Status not in (Closed, Done, Resolved)";
     private static final String DEFAULT_JIRA_MESSAGE_TEMPLATE = "[STREAM_RESULT]\n\n" +
             " *Stream title:* \n [STREAM_TITLE]\n\n" +
             " *Stream URL:* \n [STREAM_URL]\n\n" +
@@ -102,13 +103,98 @@ public class JiraAlarmCallback implements AlarmCallback {
     // The plugin configuration
     private Configuration configuration;
 
-    /* This is called once at the very beginning of the lifecycle of this plugin. It is common practice to
+    /**
+     * This is called once at the very beginning of the lifecycle of this plugin. It is common practice to
      * store the Configuration as a private member for later access.
+     *
      * @see org.graylog2.plugin.alarms.callbacks.AlarmCallback#initialize(org.graylog2.plugin.configuration.Configuration)
      */
     @Override
     public void initialize(final Configuration config) throws AlarmCallbackConfigurationException {
         this.configuration = config;
+    }
+
+    /**
+     * Plugins can request configurations. The UI in the Graylog web interface is generated from this information and
+     * the filled out configuration values are passed back to the plugin in initialize(Configuration configuration).
+     *
+     * Default values are used to populate the form only the first time a New Alert Notification is created using the Graylog UI.
+     *
+     * @see org.graylog2.plugin.alarms.callbacks.AlarmCallback#getRequestedConfiguration()
+     */
+    @Override
+    public ConfigurationRequest getRequestedConfiguration() {
+        final ConfigurationRequest configurationRequest = new ConfigurationRequest();
+
+        configurationRequest.addField(new TextField(
+                JIRA_INSTANCE_URL, "JIRA Instance URL", "", "JIRA server URL.",
+                ConfigurationField.Optional.NOT_OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_USERNAME, "JIRA username", "", "Username to login to JIRA and create issues.",
+                ConfigurationField.Optional.NOT_OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_PASSWORD, "JIRA password", "", "Password to login to JIRA.",
+                ConfigurationField.Optional.NOT_OPTIONAL, TextField.Attribute.IS_PASSWORD));
+
+        configurationRequest.addField(new TextField(
+                JIRA_PROJECT_KEY, "JIRA project Key", "", "Project under which the issue will be created.",
+                ConfigurationField.Optional.NOT_OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_ISSUE_TYPE, "JIRA issue Type", "Bug", "Type of issue.",
+                ConfigurationField.Optional.NOT_OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_MESSAGE_TEMPLATE, "JIRA message template", DEFAULT_JIRA_MESSAGE_TEMPLATE.replaceAll("\n", "\\n"), "Message template for JIRA",
+                ConfigurationField.Optional.NOT_OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_TITLE_TEMPLATE, "JIRA issue title template", DEFAULT_JIRA_TITLE_TEMPLATE, "Title template for JIRA tasks",
+                ConfigurationField.Optional.NOT_OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                GRAYLOG_URL, "Graylog URL", null, "URL to your Graylog web interface. Used to build links in alarm notification.",
+                ConfigurationField.Optional.NOT_OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                GRAYLOG_HISTOGRAM_TIME_SPAN, "Graylog Histogram Time Span", "30", "Time span (in seconds) for displaying Graylog Histogram messages.",
+                ConfigurationField.Optional.NOT_OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_PRIORITY, "JIRA Issue Priority", "Low", "Priority of the issue.",
+                ConfigurationField.Optional.OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_LABELS, "JIRA Labels", "", "List of comma-separated labels to add to this issue - i.e. graylog",
+                ConfigurationField.Optional.OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_COMPONENTS, "JIRA Components", "", "List of comma-separated components to add to this issue.",
+                ConfigurationField.Optional.OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                MESSAGE_REGEX, "Message regex", "", "Message regex to extract message content. Example: " + EXAMPLE_JIRA_MESSAGE_REGEX,
+                ConfigurationField.Optional.OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_MD5_HASH_PATTERN, "JIRA MD5 pattern", "", "Pattern to construct MD5. Example: " + EXAMPLE_JIRA_MD5_TEMPLATE,
+                ConfigurationField.Optional.OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_MD5_CUSTOM_FIELD, "JIRA MD5 custom field", "", "Custom field name for the MD5 hash, this will be in the format of customfield_####. If not set, we will try and find it",
+                ConfigurationField.Optional.OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_MD5_FILTER_QUERY, "JIRA duplicate filter query", "", "Additional filter query to check for duplicates. Example: " + EXAMPLE_JIRA_MD5_FILTER_QUERY_TEMPLATE,
+                ConfigurationField.Optional.OPTIONAL));
+
+        configurationRequest.addField(new TextField(
+                JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING, "JIRA/Graylog field mapping", "", "List of comma-separated Graylog/JIRA mapping fields to automatically map Graylog message fields into JIRA",
+                ConfigurationField.Optional.OPTIONAL));
+
+        return configurationRequest;
     }
 
     /* This is the actual alarm callback being triggered.
@@ -118,102 +204,22 @@ public class JiraAlarmCallback implements AlarmCallback {
     public void call(final Stream stream, final AlertCondition.CheckResult result) throws AlarmCallbackException {
 
         JiraIssueClient jiraIssueClient = new JiraIssueClient(
-                configuration.getString(CK_JIRA_PROJECT_KEY),
+                configuration.getString(JIRA_PROJECT_KEY),
                 buildJIRATitle(stream, result),
                 buildDescription(stream, result),
-                configuration.getString(CK_JIRA_LABELS),
-                configuration.getString(CK_JIRA_ISSUE_TYPE),
-                configuration.getString(CK_JIRA_COMPONENTS),
-                configuration.getString(CK_JIRA_PRIORITY),
-                configuration.getString(CK_JIRA_INSTANCE_URL),
-                configuration.getString(CK_JIRA_USERNAME),
-                configuration.getString(CK_JIRA_PASSWORD),
-                configuration.getString(CK_JIRA_MD5_FILTER_QUERY),
-                configuration.getString(CK_JIRA_MD5_CUSTOM_FIELD),
+                configuration.getString(JIRA_LABELS),
+                configuration.getString(JIRA_ISSUE_TYPE),
+                configuration.getString(JIRA_COMPONENTS),
+                configuration.getString(JIRA_PRIORITY),
+                configuration.getString(JIRA_INSTANCE_URL),
+                configuration.getString(JIRA_USERNAME),
+                configuration.getString(JIRA_PASSWORD),
+                configuration.getString(JIRA_MD5_FILTER_QUERY),
+                configuration.getString(JIRA_MD5_CUSTOM_FIELD),
                 buildJIRAGraylogMapping(stream, result),
                 getJIRAMessageDigest(stream, result));
 
         jiraIssueClient.trigger(stream, result);
-    }
-
-    /* Plugins can request configurations. The UI in the Graylog web interface is generated from this information and
-     * the filled out configuration values are passed back to the plugin in initialize(Configuration configuration).
-     * @see org.graylog2.plugin.alarms.callbacks.AlarmCallback#getRequestedConfiguration()
-     */
-    @Override
-    public ConfigurationRequest getRequestedConfiguration() {
-        final ConfigurationRequest configurationRequest = new ConfigurationRequest();
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_INSTANCE_URL, "JIRA Instance URL", "", "JIRA server URL.",
-                ConfigurationField.Optional.NOT_OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_USERNAME, "JIRA username", "", "Username to login to JIRA and create issues.",
-                ConfigurationField.Optional.NOT_OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_PASSWORD, "JIRA password", "", "Password to login to JIRA.",
-                ConfigurationField.Optional.NOT_OPTIONAL, TextField.Attribute.IS_PASSWORD));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_PROJECT_KEY, "JIRA project Key", "", "Project under which the issue will be created.",
-                ConfigurationField.Optional.NOT_OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_ISSUE_TYPE, "JIRA issue Type", "Bug", "Type of issue.",
-                ConfigurationField.Optional.NOT_OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_MESSAGE_TEMPLATE, "JIRA message template", DEFAULT_JIRA_MESSAGE_TEMPLATE.replaceAll("\n", "\\\n"), "Message template for JIRA",
-                ConfigurationField.Optional.NOT_OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_TITLE_TEMPLATE, "JIRA issue title template", DEFAULT_JIRA_TITLE_TEMPLATE, "Title template for JIRA tasks",
-                ConfigurationField.Optional.NOT_OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_GRAYLOG_URL, "Graylog URL", null, "URL to your Graylog web interface. Used to build links in alarm notification.",
-                ConfigurationField.Optional.NOT_OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_GRAYLOG_HISTOGRAM_TIME_SPAN, "Graylog Histogram Time Span", "30", "Time span (in seconds) for displaying Graylog Histogram messages.",
-                ConfigurationField.Optional.NOT_OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_PRIORITY, "JIRA Issue Priority", "Minor", "Priority of the issue.",
-                ConfigurationField.Optional.OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_LABELS, "JIRA Labels", "", "List of comma-separated labels to add to this issue - i.e. graylog",
-                ConfigurationField.Optional.OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_COMPONENTS, "JIRA Components", "", "List of comma-separated components to add to this issue.",
-                ConfigurationField.Optional.OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_MESSAGE_REGEX, "Message regex", "", "Message regex to extract message content. Example: " + DEFAULT_JIRA_MESSAGE_REGEX,
-                ConfigurationField.Optional.OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_MD5_HASH_PATTERN, "JIRA MD5 pattern", "", "Pattern to construct MD5. Example: " + DEFAULT_JIRA_MD5_TEMPLATE,
-                ConfigurationField.Optional.OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_MD5_CUSTOM_FIELD, "JIRA MD5 custom field", "", "Custom field name for the MD5 hash, this will be in the format of customfield_####. If not set, we will try and find it",
-                ConfigurationField.Optional.OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_MD5_FILTER_QUERY, "JIRA duplicate filter query", "", "Additional filter query to check for duplicates. Example: " + DEFAULT_JIRA_MD5_FILTER_QUERY_TEMPLATE,
-                ConfigurationField.Optional.OPTIONAL));
-
-        configurationRequest.addField(new TextField(
-                CK_JIRA_GRAYLOG_MAPPING, "JIRA/Graylog field mapping", "", "List of comma-separated Graylog/JIRA mapping fields to automatically map Graylog message fields into JIRA",
-                ConfigurationField.Optional.OPTIONAL));
-
-
-        return configurationRequest;
     }
 
     /* Return attributes that might be interesting to be shown under the alarm callback in the Graylog web interface.
@@ -283,9 +289,9 @@ public class JiraAlarmCallback implements AlarmCallback {
             MessageSummary lastMessage = result.getMatchingMessages().get(0);
 
             // Let's extract the message regex first
-            if (configuration.stringIsSet(CK_MESSAGE_REGEX) && !configuration.getString(CK_MESSAGE_REGEX).equals("null")) {
+            if (configuration.stringIsSet(MESSAGE_REGEX) && !configuration.getString(MESSAGE_REGEX).equals("null")) {
                 try {
-                    Matcher matcher = Pattern.compile(configuration.getString(CK_MESSAGE_REGEX)).matcher(lastMessage.getMessage());
+                    Matcher matcher = Pattern.compile(configuration.getString(MESSAGE_REGEX)).matcher(lastMessage.getMessage());
 
                     if (matcher.find()) {
                         JiraMessageRegex = lastMessage.getMessage().substring(matcher.start());
@@ -298,10 +304,10 @@ public class JiraAlarmCallback implements AlarmCallback {
             String JiraMD5Content = "";
 
             // Let's extract the message regex first
-            if (configuration.stringIsSet(CK_JIRA_MD5_HASH_PATTERN) && !configuration.getString(CK_JIRA_MD5_HASH_PATTERN).equals("null")) {
+            if (configuration.stringIsSet(JIRA_MD5_HASH_PATTERN) && !configuration.getString(JIRA_MD5_HASH_PATTERN).equals("null")) {
 
                 try {
-                    JiraMD5Content = configuration.getString(CK_JIRA_MD5_HASH_PATTERN);
+                    JiraMD5Content = configuration.getString(JIRA_MD5_HASH_PATTERN);
 
                     // replace the message-regex place-holder
                     JiraMD5Content = JiraMD5Content.replace("[MESSAGE_REGEX]", JiraMessageRegex);
@@ -360,8 +366,8 @@ public class JiraAlarmCallback implements AlarmCallback {
 
                 String strTitle = "[Alert] Graylog alert for stream: " + stream.getTitle();
 
-                if (configuration.stringIsSet(CK_JIRA_TITLE_TEMPLATE) && !configuration.getString(CK_JIRA_TITLE_TEMPLATE).equals("null")) {
-                    strTitle = configuration.getString(CK_JIRA_TITLE_TEMPLATE);
+                if (configuration.stringIsSet(JIRA_TITLE_TEMPLATE) && !configuration.getString(JIRA_TITLE_TEMPLATE).equals("null")) {
+                    strTitle = configuration.getString(JIRA_TITLE_TEMPLATE);
                 }
 
                 strTitle = strTitle.replace("[LAST_MESSAGE.source]", lastMessage.getSource());
@@ -370,11 +376,11 @@ public class JiraAlarmCallback implements AlarmCallback {
                     strTitle = strTitle.replace("[LAST_MESSAGE." + arg.getKey() + "]", arg.getValue().toString());
                 }
 
-                if (configuration.stringIsSet(CK_MESSAGE_REGEX) && !configuration.getString(CK_MESSAGE_REGEX).equals("null")) {
-                    Matcher matcher = Pattern.compile(configuration.getString(CK_MESSAGE_REGEX)).matcher(lastMessage.getMessage());
+                if (configuration.stringIsSet(MESSAGE_REGEX) && !configuration.getString(MESSAGE_REGEX).equals("null")) {
+                    Matcher matcher = Pattern.compile(configuration.getString(MESSAGE_REGEX)).matcher(lastMessage.getMessage());
 
                     if (matcher.find()) {
-                        if (configuration.stringIsSet(CK_JIRA_TITLE_TEMPLATE) && !configuration.getString(CK_JIRA_TITLE_TEMPLATE).equals("null")) {
+                        if (configuration.stringIsSet(JIRA_TITLE_TEMPLATE) && !configuration.getString(JIRA_TITLE_TEMPLATE).equals("null")) {
                             strTitle = strTitle.replace("[MESSAGE_REGEX]", matcher.group());
                         } else {
                             strTitle = "[Graylog] " + matcher.group();
@@ -406,10 +412,10 @@ public class JiraAlarmCallback implements AlarmCallback {
 
         String strMessage = DEFAULT_JIRA_MESSAGE_TEMPLATE;
 
-        if (configuration.stringIsSet(CK_JIRA_MESSAGE_TEMPLATE) &&
-                !configuration.getString(CK_JIRA_MESSAGE_TEMPLATE).equals("null") &&
-                !configuration.getString(CK_JIRA_MESSAGE_TEMPLATE).isEmpty()) {
-            strMessage = configuration.getString(CK_JIRA_MESSAGE_TEMPLATE);
+        if (configuration.stringIsSet(JIRA_MESSAGE_TEMPLATE) &&
+                !configuration.getString(JIRA_MESSAGE_TEMPLATE).equals("null") &&
+                !configuration.getString(JIRA_MESSAGE_TEMPLATE).isEmpty()) {
+            strMessage = configuration.getString(JIRA_MESSAGE_TEMPLATE);
         }
 
         strMessage = StringEscapeUtils.unescapeJava(strMessage);
@@ -435,7 +441,7 @@ public class JiraAlarmCallback implements AlarmCallback {
         strMessage = strMessage.replace("[CALLBACK_DATE]", Tools.iso8601().toString());
         strMessage = strMessage.replace("[STREAM_ID]", stream.getId());
         strMessage = strMessage.replace("[STREAM_TITLE]", stream.getTitle());
-        strMessage = strMessage.replace("[STREAM_URL]", buildStreamURL(configuration.getString(CK_GRAYLOG_URL), stream));
+        strMessage = strMessage.replace("[STREAM_URL]", buildStreamURL(configuration.getString(GRAYLOG_URL), stream));
         strMessage = strMessage.replace("[STREAM_RULES]", buildStreamRules(stream));
         strMessage = strMessage.replace("[STREAM_RESULT]", result.getResultDescription());
         strMessage = strMessage.replace("[ALERT_TRIGGERED_AT]", result.getTriggeredAt().toString());
@@ -455,7 +461,7 @@ public class JiraAlarmCallback implements AlarmCallback {
             baseUrl += "/";
         }
 
-        return baseUrl + "streams/" + stream.getId() + "/messages?q=*&rangetype=relative&relative=" + configuration.getString(CK_GRAYLOG_HISTOGRAM_TIME_SPAN);
+        return baseUrl + "streams/" + stream.getId() + "/messages?q=*&rangetype=relative&relative=" + configuration.getString(GRAYLOG_HISTOGRAM_TIME_SPAN);
     }
 
     /**
@@ -480,12 +486,12 @@ public class JiraAlarmCallback implements AlarmCallback {
 
         Map<String, String> JIRAFieldMapping = new HashMap<>();
 
-        if (configuration.stringIsSet(CK_JIRA_GRAYLOG_MAPPING) && !configuration.getString(CK_JIRA_GRAYLOG_MAPPING).equals("null") && !result.getMatchingMessages().isEmpty()) {
+        if (configuration.stringIsSet(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING) && !configuration.getString(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING).equals("null") && !result.getMatchingMessages().isEmpty()) {
             try {
                 // get fields from last message only
                 MessageSummary lastMessage = result.getMatchingMessages().get(0);
 
-                String[] mappingPairs = StringUtils.split(configuration.getString(CK_JIRA_GRAYLOG_MAPPING), ',');
+                String[] mappingPairs = StringUtils.split(configuration.getString(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING), ',');
 
                 if (mappingPairs != null && mappingPairs.length > 0) {
                     for (String mappingString : mappingPairs) {

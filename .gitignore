@@ -7,7 +7,6 @@ lib/
 logs/
 target/
 
-
 # Eclipse project files
 .classpath
 .project
@@ -25,3 +24,6 @@ Servers/
 # Android Studio
 local.properties
 app/
+
+#MacOS files
+.DS_STORE
