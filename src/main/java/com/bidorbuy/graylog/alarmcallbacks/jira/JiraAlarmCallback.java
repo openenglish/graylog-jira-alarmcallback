@@ -91,14 +91,14 @@ public class JiraAlarmCallback implements AlarmCallback {
 
     // The default title template for JIRA messages
     private static final String DEFAULT_JIRA_TITLE_TEMPLATE = "Jira [MESSAGE_REGEX]";
-    private static final String DEFAULT_JIRA_MESSAGE_TEMPLATE = "[STREAM_RESULT]\n\n" +
-            " *Stream title:* \n [STREAM_TITLE]\n\n" +
-            " *Stream URL:* \n [STREAM_URL]\n\n" +
-            " *Stream rules:* \n [STREAM_RULES]\n\n" +
-            " *Alert triggered at:* \n [ALERT_TRIGGERED_AT]\n\n" +
-            " *Triggered condition:* \n [ALERT_TRIGGERED_CONDITION]\n\n" +
-            " *Source:* \n [LAST_MESSAGE.source]\n\n" +
-            " *Message:* \n [LAST_MESSAGE.message]\n\n";
+    private static final String DEFAULT_JIRA_MESSAGE_TEMPLATE = "[STREAM_RESULT]\\n\\n" +
+            "*Stream title:*\\n[STREAM_TITLE]\\n\\n" +
+            "*Stream URL:*\\n[STREAM_URL]\\n\\n" +
+            "*Stream rules:*\\n[STREAM_RULES]\\n\\n" +
+            "*Alert triggered at:*\\n[ALERT_TRIGGERED_AT]\\n\\n" +
+            "*Triggered condition:*\\n[ALERT_TRIGGERED_CONDITION]\\n\\n" +
+            "*Source:*\\n[LAST_MESSAGE.source]\\n\\n" +
+            "*Message:*\\n[LAST_MESSAGE.message]\\n\\n";
 
     // The plugin configuration
     private Configuration configuration;
@@ -110,9 +110,12 @@ public class JiraAlarmCallback implements AlarmCallback {
      * @see org.graylog2.plugin.alarms.callbacks.AlarmCallback#initialize(org.graylog2.plugin.configuration.Configuration)
      */
     @Override
-    public void initialize(final Configuration config) throws AlarmCallbackConfigurationException {
-        this.configuration = config;
-    }
+    public void initialize(final Configuration configuration) throws AlarmCallbackConfigurationException {
+        LOG.debug("Starting initialize(...)");
+
+        this.configuration = configuration;
+
+        LOG.debug("Finishing initialize(...)");    }
 
     /**
      * Plugins can request configurations. The UI in the Graylog web interface is generated from this information and
@@ -124,6 +127,8 @@ public class JiraAlarmCallback implements AlarmCallback {
      */
     @Override
     public ConfigurationRequest getRequestedConfiguration() {
+        LOG.debug("Starting getRequestedConfiguration()");
+
         final ConfigurationRequest configurationRequest = new ConfigurationRequest();
 
         configurationRequest.addField(new TextField(
@@ -147,7 +152,7 @@ public class JiraAlarmCallback implements AlarmCallback {
                 ConfigurationField.Optional.NOT_OPTIONAL));
 
         configurationRequest.addField(new TextField(
-                JIRA_MESSAGE_TEMPLATE, "JIRA message template", DEFAULT_JIRA_MESSAGE_TEMPLATE, "Message template for JIRA. Use \n to separate lines.",
+                JIRA_MESSAGE_TEMPLATE, "JIRA message template", DEFAULT_JIRA_MESSAGE_TEMPLATE, "Message template for JIRA. Use 'backslash n' to separate lines.",
                 ConfigurationField.Optional.NOT_OPTIONAL));
 
         configurationRequest.addField(new TextField(
@@ -194,14 +199,19 @@ public class JiraAlarmCallback implements AlarmCallback {
                 JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING, "JIRA/Graylog field mapping", "", "List of comma-separated Graylog/JIRA mapping fields to automatically map Graylog message fields into JIRA.",
                 ConfigurationField.Optional.OPTIONAL));
 
+        LOG.debug("Finishing getRequestedConfiguration()");
+
         return configurationRequest;
     }
 
-    /* This is the actual alarm callback being triggered.
+    /**
+     * This is the actual alarm callback being triggered.
+     *
      * @see org.graylog2.plugin.alarms.callbacks.AlarmCallback#call(org.graylog2.plugin.streams.Stream, org.graylog2.plugin.alarms.AlertCondition.CheckResult)
      */
     @Override
     public void call(final Stream stream, final AlertCondition.CheckResult result) throws AlarmCallbackException {
+        LOG.debug("Starting call(...)");
 
         JiraIssueClient jiraIssueClient = new JiraIssueClient(
                 configuration.getString(JIRA_INSTANCE_URL),
@@ -216,16 +226,20 @@ public class JiraAlarmCallback implements AlarmCallback {
                 configuration.getString(JIRA_MD5_FILTER_QUERY),
                 configuration.getString(JIRA_MD5_CUSTOM_FIELD),
 
-                buildJIRATitle(stream, result),
-                buildJIRADescription(stream, result),
-                buildJIRAGraylogMapping(stream, result),
-                buildJIRAMessageDigest(stream, result));
+                buildJIRATitle(configuration, stream, result),
+                buildJIRADescription(configuration, stream, result),
+                buildJIRAGraylogMapping(configuration, result),
+                buildJIRAMessageDigest(configuration, result));
 
-        jiraIssueClient.trigger(stream, result);
+        jiraIssueClient.trigger();
+
+        LOG.debug("Finishing call(...)");
     }
 
-    /* Return attributes that might be interesting to be shown under the alarm callback in the Graylog web interface.
+    /**
+     * Return attributes that might be interesting to be shown under the alarm callback in the Graylog web interface.
      * It is common practice to at least return the used configuration here.
+     *
      * @see org.graylog2.plugin.alarms.callbacks.AlarmCallback#getAttributes()
      */
     @Override
@@ -241,11 +255,14 @@ public class JiraAlarmCallback implements AlarmCallback {
         });
     }
 
-    /* Throw a ConfigurationException if the user should have entered missing or invalid configuration parameters.
+    /**
+     * Throw a ConfigurationException if the user should have entered missing or invalid configuration parameters.
+     *
      * @see org.graylog2.plugin.alarms.callbacks.AlarmCallback#checkConfiguration()
      */
     @Override
     public void checkConfiguration() throws ConfigurationException {
+        LOG.debug("Starting checkConfiguration()");
 
         // Check if we have all mandatory keys
         for (String key : CONFIGURATION_KEYS_MANDATORY) {
@@ -268,9 +285,12 @@ public class JiraAlarmCallback implements AlarmCallback {
             }
         }
 
+        LOG.debug("Finishing checkConfiguration()");
     }
 
-    /* Return a human readable name of this plugin.
+    /**
+     * Return a human readable name of this plugin.
+     *
      * @see org.graylog2.plugin.alarms.callbacks.AlarmCallback#getName()
      */
     @Override
@@ -279,9 +299,180 @@ public class JiraAlarmCallback implements AlarmCallback {
     }
 
     /**
+     * Build the JIRA issue title
+     */
+    private static String buildJIRATitle(final Configuration configuration, final Stream stream, final AlertCondition.CheckResult result) {
+        LOG.debug("Starting buildJIRATitle(...)");
+
+        StringBuilder sb = new StringBuilder();
+
+        try {
+            if (!result.getMatchingMessages().isEmpty()) {
+                // get fields from last message only
+                MessageSummary lastMessage = result.getMatchingMessages().get(0);
+
+                Map<String, Object> lastMessageFields = lastMessage.getFields();
+
+                String strTitle = "[Alert] Graylog alert for stream: " + stream.getTitle();
+
+                if (configuration.stringIsSet(JIRA_TITLE_TEMPLATE) && !configuration.getString(JIRA_TITLE_TEMPLATE).equals("null")) {
+                    strTitle = configuration.getString(JIRA_TITLE_TEMPLATE);
+                }
+
+                strTitle = strTitle.replace("[LAST_MESSAGE.source]", lastMessage.getSource());
+
+                for (Map.Entry<String, Object> arg : lastMessageFields.entrySet()) {
+                    strTitle = strTitle.replace("[LAST_MESSAGE." + arg.getKey() + "]", arg.getValue().toString());
+                }
+
+                if (configuration.stringIsSet(MESSAGE_REGEX) && !configuration.getString(MESSAGE_REGEX).equals("null")) {
+                    Matcher matcher = Pattern.compile(configuration.getString(MESSAGE_REGEX)).matcher(lastMessage.getMessage());
+
+                    if (matcher.find()) {
+                        if (configuration.stringIsSet(JIRA_TITLE_TEMPLATE) && !configuration.getString(JIRA_TITLE_TEMPLATE).equals("null")) {
+                            strTitle = strTitle.replace("[MESSAGE_REGEX]", matcher.group());
+                        } else {
+                            strTitle = "[Graylog] " + matcher.group();
+                        }
+                    }
+                }
+
+                // We regex template fields which have not been replaced
+                strTitle = strTitle.replaceAll("\\[LAST_MESSAGE\\.[^\\]]*\\]", "");
+
+                sb.append(strTitle);
+            }
+        } catch (Exception ex) {
+            // can not do anything - we skip
+            LOG.error("Error in building title: " + ex.getMessage());
+        }
+
+        if (sb.length() == 0) {
+            sb.append("[Alert] Graylog alert for stream: ").append(stream.getTitle());
+        }
+
+        LOG.debug("Finishing buildJIRATitle(...)");
+
+        return sb.toString();
+    }
+
+    /**
+     * Build the JIRA description
+     */
+    private static String buildJIRADescription(final Configuration configuration, final Stream stream, final AlertCondition.CheckResult result) {
+        LOG.debug("Starting buildJIRADescription(...)");
+
+        String strMessage = DEFAULT_JIRA_MESSAGE_TEMPLATE;
+
+        if (configuration.stringIsSet(JIRA_MESSAGE_TEMPLATE) &&
+                !configuration.getString(JIRA_MESSAGE_TEMPLATE).equals("null") &&
+                !configuration.getString(JIRA_MESSAGE_TEMPLATE).isEmpty()) {
+            strMessage = configuration.getString(JIRA_MESSAGE_TEMPLATE);
+        }
+
+        strMessage = StringEscapeUtils.unescapeJava(strMessage);
+
+        // Get the last message
+        if (!result.getMatchingMessages().isEmpty()) {
+            // get fields from last message only
+            MessageSummary lastMessage = result.getMatchingMessages().get(0);
+            Map<String, Object> lastMessageFields = lastMessage.getFields();
+
+            strMessage = strMessage.replace("[LAST_MESSAGE.message]", lastMessage.getMessage());
+            strMessage = strMessage.replace("[LAST_MESSAGE.source]", lastMessage.getSource());
+
+            for (Map.Entry<String, Object> arg : lastMessageFields.entrySet()) {
+                strMessage = strMessage.replace("[LAST_MESSAGE." + arg.getKey() + "]", arg.getValue().toString());
+            }
+
+            // We regex template fields which have not been replaced
+            strMessage = strMessage.replaceAll("\\[LAST_MESSAGE\\.[^\\]]*\\]", "");
+        }
+
+        // replace placeholders
+        strMessage = strMessage.replace("[CALLBACK_DATE]", Tools.iso8601().toString());
+        strMessage = strMessage.replace("[STREAM_ID]", stream.getId());
+        strMessage = strMessage.replace("[STREAM_TITLE]", stream.getTitle());
+        strMessage = strMessage.replace("[STREAM_URL]", buildStreamURL(configuration, stream));
+        strMessage = strMessage.replace("[STREAM_RULES]", buildStreamRules(stream));
+        strMessage = strMessage.replace("[STREAM_RESULT]", result.getResultDescription());
+        strMessage = strMessage.replace("[ALERT_TRIGGERED_AT]", result.getTriggeredAt().toString());
+        strMessage = strMessage.replace("[ALERT_TRIGGERED_CONDITION]", result.getTriggeredCondition().toString());
+
+        LOG.debug("Finishing buildJIRADescription(...)");
+
+        return "\n\n" + strMessage + "\n\n";
+    }
+
+    /**
+     * Build stream URL string
+     */
+    private static String buildStreamURL(final Configuration configuration, final Stream stream) {
+        String baseUrl = configuration.getString(GRAYLOG_URL);
+
+        if (!baseUrl.endsWith("/")) {
+            baseUrl += "/";
+        }
+
+        return baseUrl + "streams/" + stream.getId() + "/messages?q=*&rangetype=relative&relative=" + configuration.getString(GRAYLOG_HISTOGRAM_TIME_SPAN);
+    }
+
+    /**
+     * Build the stream rules
+     */
+    private static String buildStreamRules(final Stream stream) {
+
+        StringBuilder sb = new StringBuilder();
+
+        for (StreamRule streamRule : stream.getStreamRules()) {
+            sb.append("_").append(streamRule.getField()).append("_ ");
+            sb.append(streamRule.getType()).append(" _").append(streamRule.getValue())
+                    .append("_").append("\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Build up a list of JIRA/Graylog field mappings
+     */
+    private static Map<String, String> buildJIRAGraylogMapping(final Configuration configuration, final AlertCondition.CheckResult result) {
+        LOG.debug("Starting buildJIRAGraylogMapping(...)");
+
+        Map<String, String> JIRAFieldMapping = new HashMap<>();
+
+        if (configuration.stringIsSet(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING) && !configuration.getString(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING).equals("null") && !result.getMatchingMessages().isEmpty()) {
+            try {
+                // get fields from last message only
+                MessageSummary lastMessage = result.getMatchingMessages().get(0);
+
+                String[] mappingPairs = StringUtils.split(configuration.getString(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING), ',');
+
+                if (mappingPairs != null && mappingPairs.length > 0) {
+                    for (String mappingString : mappingPairs) {
+                        String[] mapping = StringUtils.split(mappingString, '=');
+
+                        if (mapping.length == 2 && lastMessage.hasField(mapping[0])) {
+                            Object test = lastMessage.getField(mapping[0]);
+                            JIRAFieldMapping.put(mapping[1], test.toString());
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                // can not do anything - we skip
+                LOG.error("Error in generating JIRA/Graylog mapping " + ex.getMessage());
+            }
+        }
+
+        LOG.debug("Finishing buildJIRAGraylogMapping(...)");
+
+        return JIRAFieldMapping;
+    }
+
+    /**
      * Generates the MD5 digest of either the message or a number of fields provided
      */
-    private String buildJIRAMessageDigest(final Stream stream, final AlertCondition.CheckResult result) {
+    private static String buildJIRAMessageDigest(final Configuration configuration, final AlertCondition.CheckResult result) {
+        LOG.debug("Starting buildJIRAMessageDigest(...)");
 
         String JiraMessageDigest = "";
 
@@ -349,169 +540,9 @@ public class JiraAlarmCallback implements AlarmCallback {
             LOG.warn("Skipping JIRA-issue MD5 generation, alarmcallback did not provide a message");
         }
 
+        LOG.debug("Finishing buildJIRAMessageDigest(...)");
+
         return JiraMessageDigest;
-    }
-
-    /**
-     * Build the JIRA issue title
-     */
-    private String buildJIRATitle(final Stream stream, final AlertCondition.CheckResult result) {
-
-        StringBuilder sb = new StringBuilder();
-
-        try {
-            if (!result.getMatchingMessages().isEmpty()) {
-                // get fields from last message only
-                MessageSummary lastMessage = result.getMatchingMessages().get(0);
-
-                Map<String, Object> lastMessageFields = lastMessage.getFields();
-
-                String strTitle = "[Alert] Graylog alert for stream: " + stream.getTitle();
-
-                if (configuration.stringIsSet(JIRA_TITLE_TEMPLATE) && !configuration.getString(JIRA_TITLE_TEMPLATE).equals("null")) {
-                    strTitle = configuration.getString(JIRA_TITLE_TEMPLATE);
-                }
-
-                strTitle = strTitle.replace("[LAST_MESSAGE.source]", lastMessage.getSource());
-
-                for (Map.Entry<String, Object> arg : lastMessageFields.entrySet()) {
-                    strTitle = strTitle.replace("[LAST_MESSAGE." + arg.getKey() + "]", arg.getValue().toString());
-                }
-
-                if (configuration.stringIsSet(MESSAGE_REGEX) && !configuration.getString(MESSAGE_REGEX).equals("null")) {
-                    Matcher matcher = Pattern.compile(configuration.getString(MESSAGE_REGEX)).matcher(lastMessage.getMessage());
-
-                    if (matcher.find()) {
-                        if (configuration.stringIsSet(JIRA_TITLE_TEMPLATE) && !configuration.getString(JIRA_TITLE_TEMPLATE).equals("null")) {
-                            strTitle = strTitle.replace("[MESSAGE_REGEX]", matcher.group());
-                        } else {
-                            strTitle = "[Graylog] " + matcher.group();
-                        }
-                    }
-                }
-
-                // We regex template fields which have not been replaced
-                strTitle = strTitle.replaceAll("\\[LAST_MESSAGE\\.[^\\]]*\\]", "");
-
-                sb.append(strTitle);
-            }
-        } catch (Exception ex) {
-            // can not do anything - we skip
-            LOG.error("Error in building title: " + ex.getMessage());
-        }
-
-        if (sb.length() == 0) {
-            sb.append("[Alert] Graylog alert for stream: ").append(stream.getTitle());
-        }
-
-        return sb.toString();
-    }
-
-    /**
-     * Build the JIRA description
-     */
-    private String buildJIRADescription(final Stream stream, final AlertCondition.CheckResult result) {
-
-        String strMessage = DEFAULT_JIRA_MESSAGE_TEMPLATE;
-
-        if (configuration.stringIsSet(JIRA_MESSAGE_TEMPLATE) &&
-                !configuration.getString(JIRA_MESSAGE_TEMPLATE).equals("null") &&
-                !configuration.getString(JIRA_MESSAGE_TEMPLATE).isEmpty()) {
-            strMessage = configuration.getString(JIRA_MESSAGE_TEMPLATE);
-        }
-
-        strMessage = StringEscapeUtils.unescapeJava(strMessage);
-
-        // Get the last message
-        if (!result.getMatchingMessages().isEmpty()) {
-            // get fields from last message only
-            MessageSummary lastMessage = result.getMatchingMessages().get(0);
-            Map<String, Object> lastMessageFields = lastMessage.getFields();
-
-            strMessage = strMessage.replace("[LAST_MESSAGE.message]", lastMessage.getMessage());
-            strMessage = strMessage.replace("[LAST_MESSAGE.source]", lastMessage.getSource());
-
-            for (Map.Entry<String, Object> arg : lastMessageFields.entrySet()) {
-                strMessage = strMessage.replace("[LAST_MESSAGE." + arg.getKey() + "]", arg.getValue().toString());
-            }
-
-            // We regex template fields which have not been replaced
-            strMessage = strMessage.replaceAll("\\[LAST_MESSAGE\\.[^\\]]*\\]", "");
-        }
-
-        // replace placeholders
-        strMessage = strMessage.replace("[CALLBACK_DATE]", Tools.iso8601().toString());
-        strMessage = strMessage.replace("[STREAM_ID]", stream.getId());
-        strMessage = strMessage.replace("[STREAM_TITLE]", stream.getTitle());
-        strMessage = strMessage.replace("[STREAM_URL]", buildStreamURL(configuration.getString(GRAYLOG_URL), stream));
-        strMessage = strMessage.replace("[STREAM_RULES]", buildStreamRules(stream));
-        strMessage = strMessage.replace("[STREAM_RESULT]", result.getResultDescription());
-        strMessage = strMessage.replace("[ALERT_TRIGGERED_AT]", result.getTriggeredAt().toString());
-        strMessage = strMessage.replace("[ALERT_TRIGGERED_CONDITION]", result.getTriggeredCondition().toString());
-
-        return "\n\n" + strMessage + "\n\n";
-    }
-
-    /**
-     * Build stream URL string
-     */
-    private String buildStreamURL(final String configURL, final Stream stream) {
-
-        String baseUrl = configURL;
-
-        if (!baseUrl.endsWith("/")) {
-            baseUrl += "/";
-        }
-
-        return baseUrl + "streams/" + stream.getId() + "/messages?q=*&rangetype=relative&relative=" + configuration.getString(GRAYLOG_HISTOGRAM_TIME_SPAN);
-    }
-
-    /**
-     * Build the stream rules
-     */
-    private String buildStreamRules(final Stream stream) {
-
-        StringBuilder sb = new StringBuilder();
-
-        for (StreamRule streamRule : stream.getStreamRules()) {
-            sb.append("_").append(streamRule.getField()).append("_ ");
-            sb.append(streamRule.getType()).append(" _").append(streamRule.getValue())
-                    .append("_").append("\n");
-        }
-        return sb.toString();
-    }
-
-    /**
-     * Build up a list of JIRA/Graylog field mappings
-     */
-    private Map<String, String> buildJIRAGraylogMapping(final Stream stream, final AlertCondition.CheckResult result) {
-
-        Map<String, String> JIRAFieldMapping = new HashMap<>();
-
-        if (configuration.stringIsSet(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING) && !configuration.getString(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING).equals("null") && !result.getMatchingMessages().isEmpty()) {
-            try {
-                // get fields from last message only
-                MessageSummary lastMessage = result.getMatchingMessages().get(0);
-
-                String[] mappingPairs = StringUtils.split(configuration.getString(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING), ',');
-
-                if (mappingPairs != null && mappingPairs.length > 0) {
-                    for (String mappingString : mappingPairs) {
-                        String[] mapping = StringUtils.split(mappingString, '=');
-
-                        if (mapping.length == 2 && lastMessage.hasField(mapping[0])) {
-                            Object test = lastMessage.getField(mapping[0]);
-                            JIRAFieldMapping.put(mapping[1], test.toString());
-                        }
-                    }
-                }
-            } catch (Exception ex) {
-                // can not do anything - we skip
-                LOG.error("Error in generating JIRA/Graylog mapping " + ex.getMessage());
-            }
-        }
-
-        return JIRAFieldMapping;
     }
 
 }

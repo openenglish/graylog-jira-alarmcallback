@@ -1,15 +1,12 @@
 package com.bidorbuy.graylog.alarmcallbacks.jira;
 
+import net.rcarz.jiraclient.*;
+import net.rcarz.jiraclient.Issue.FluentCreate;
+import net.sf.json.JSONObject;
+import org.apache.commons.lang3.StringUtils;
+import org.graylog2.plugin.alarms.callbacks.AlarmCallbackException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import net.rcarz.jiraclient.BasicCredentials;
-import net.rcarz.jiraclient.Field;
-import net.rcarz.jiraclient.Issue;
-import net.rcarz.jiraclient.Issue.FluentCreate;
-import net.rcarz.jiraclient.JiraClient;
-import net.rcarz.jiraclient.JiraException;
-import net.sf.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,14 +14,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.StringUtils;
-import org.graylog2.plugin.alarms.AlertCondition;
-import org.graylog2.plugin.alarms.callbacks.AlarmCallbackException;
-import org.graylog2.plugin.streams.Stream;
 
 class JiraIssueClient {
 
-    private static final Logger LOG = LoggerFactory.getLogger(JiraAlarmCallback.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JiraIssueClient.class);
 
     // The JIRA field-name for the MD5 - digest
     private static final String GRAYLOG_MD5 = "graylog_md5";
@@ -45,8 +38,6 @@ class JiraIssueClient {
     private final String JIRADescription;
     private final Map<String, String> JIRAGraylogMapping;
     private final String JIRAMessageDigest;
-
-    private JiraClient jiraClient = null;
 
     JiraIssueClient(
             final String JIRAServerURL,
@@ -84,29 +75,30 @@ class JiraIssueClient {
         this.JIRAMessageDigest = JIRAMessageDigest;
     }
 
-    void trigger(final Stream stream, final AlertCondition.CheckResult checkResult) throws AlarmCallbackException {
+    void trigger() throws AlarmCallbackException {
+        LOG.debug("Starting trigger()");
 
         try {
             BasicCredentials basicCredentials = new BasicCredentials(JIRAUserName, JIRAPassword);
 
-            jiraClient = new JiraClient(JIRAServerURL, basicCredentials);
+            JiraClient jiraClient = new JiraClient(JIRAServerURL, basicCredentials);
 
-            if (!isDuplicateJiraIssue()) {
-                createJIRAIssue();
+            if (!isDuplicateJIRAIssue(jiraClient)) {
+                createJIRAIssue(jiraClient);
             }
         } catch (Throwable ex) {
             LOG.error("Error in trigger function" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
             throw ex;
         }
 
+        LOG.debug("Finishing trigger()");
     }
 
     /**
      * Checks if a JIRA issue is duplicated.
      */
-    private boolean isDuplicateJiraIssue() throws AlarmCallbackException {
-
-        boolean bDuplicateIssue = false;
+    private boolean isDuplicateJIRAIssue(JiraClient jiraClient) throws AlarmCallbackException {
+        boolean isDuplicate = false;
 
         if (StringUtils.isBlank(JIRAMessageDigest)) {
             return false;
@@ -121,7 +113,7 @@ class JiraIssueClient {
                     "id,key,summary", 1);
 
             if (srJiraIssues != null && srJiraIssues.issues != null && !srJiraIssues.issues.isEmpty()) {
-                bDuplicateIssue = true;
+                isDuplicate = true;
                 LOG.info("There " + (srJiraIssues.issues.size() > 1 ? "are " + srJiraIssues.issues.size() + " issues" : "is one issue") + " with MD5=" + JIRAMessageDigest +
                         (StringUtils.isNotBlank(JIRADuplicateIssueFilterQuery) ? " and filter-query='" + JIRADuplicateIssueFilterQuery + "'" : ""));
             } else {
@@ -133,14 +125,14 @@ class JiraIssueClient {
             throw new AlarmCallbackException("Failed searching for duplicate issue", ex);
         }
 
-        return bDuplicateIssue;
+        return isDuplicate;
     }
 
     /**
      * Create a JIRA issue
      */
     @SuppressWarnings("serial")
-    private void createJIRAIssue() throws AlarmCallbackException {
+    private void createJIRAIssue(JiraClient jiraClient) throws AlarmCallbackException {
 
         try {
             List<String> labels = (StringUtils.isNotBlank(JIRALabels) ? Arrays.asList(StringUtils.split(JIRALabels, ',')) : null);
@@ -177,7 +169,7 @@ class JiraIssueClient {
                 // if we do not have a configured custom-field, we will try and find it from meta-data
                 // this requires that the JIRA user has edit-permissions
                 if (StringUtils.isBlank(md5Field)) {
-                    md5Field = getJIRACustomMD5Field();
+                    md5Field = getJIRACustomMD5Field(jiraClient);
                 }
 
                 if (StringUtils.isNotBlank(md5Field)) {
@@ -225,8 +217,7 @@ class JiraIssueClient {
      * Return the name of the md5 custom field
      */
     @SuppressWarnings("unchecked")
-    private String getJIRACustomMD5Field() throws AlarmCallbackException {
-
+    private String getJIRACustomMD5Field(JiraClient jiraClient) throws AlarmCallbackException {
         String strJIRACustomMD5Field = null;
 
         LOG.warn("It is more efficient to configure '" + JiraAlarmCallback.JIRA_MD5_CUSTOM_FIELD + "' for MD5-hashing.");
