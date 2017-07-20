@@ -117,7 +117,7 @@ public class JiraAlarmCallback implements AlarmCallback {
     /**
      * Plugins can request configurations. The UI in the Graylog web interface is generated from this information and
      * the filled out configuration values are passed back to the plugin in initialize(Configuration configuration).
-     *
+     * <p>
      * Default values are used to populate the form only the first time a New Alert Notification is created using the Graylog UI.
      *
      * @see org.graylog2.plugin.alarms.callbacks.AlarmCallback#getRequestedConfiguration()
@@ -147,11 +147,11 @@ public class JiraAlarmCallback implements AlarmCallback {
                 ConfigurationField.Optional.NOT_OPTIONAL));
 
         configurationRequest.addField(new TextField(
-                JIRA_MESSAGE_TEMPLATE, "JIRA message template", DEFAULT_JIRA_MESSAGE_TEMPLATE.replaceAll("\n", "\\n"), "Message template for JIRA",
+                JIRA_MESSAGE_TEMPLATE, "JIRA message template", DEFAULT_JIRA_MESSAGE_TEMPLATE, "Message template for JIRA. Use \n to separate lines.",
                 ConfigurationField.Optional.NOT_OPTIONAL));
 
         configurationRequest.addField(new TextField(
-                JIRA_TITLE_TEMPLATE, "JIRA issue title template", DEFAULT_JIRA_TITLE_TEMPLATE, "Title template for JIRA tasks",
+                JIRA_TITLE_TEMPLATE, "JIRA issue title template", DEFAULT_JIRA_TITLE_TEMPLATE, "Title template for JIRA tasks.",
                 ConfigurationField.Optional.NOT_OPTIONAL));
 
         configurationRequest.addField(new TextField(
@@ -183,7 +183,7 @@ public class JiraAlarmCallback implements AlarmCallback {
                 ConfigurationField.Optional.OPTIONAL));
 
         configurationRequest.addField(new TextField(
-                JIRA_MD5_CUSTOM_FIELD, "JIRA MD5 custom field", "", "Custom field name for the MD5 hash, this will be in the format of customfield_####. If not set, we will try and find it",
+                JIRA_MD5_CUSTOM_FIELD, "JIRA MD5 custom field", "", "Custom field name for the MD5 hash, this will be in the format of customfield_####. If not set, we will try and find it.",
                 ConfigurationField.Optional.OPTIONAL));
 
         configurationRequest.addField(new TextField(
@@ -191,7 +191,7 @@ public class JiraAlarmCallback implements AlarmCallback {
                 ConfigurationField.Optional.OPTIONAL));
 
         configurationRequest.addField(new TextField(
-                JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING, "JIRA/Graylog field mapping", "", "List of comma-separated Graylog/JIRA mapping fields to automatically map Graylog message fields into JIRA",
+                JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING, "JIRA/Graylog field mapping", "", "List of comma-separated Graylog/JIRA mapping fields to automatically map Graylog message fields into JIRA.",
                 ConfigurationField.Optional.OPTIONAL));
 
         return configurationRequest;
@@ -204,20 +204,22 @@ public class JiraAlarmCallback implements AlarmCallback {
     public void call(final Stream stream, final AlertCondition.CheckResult result) throws AlarmCallbackException {
 
         JiraIssueClient jiraIssueClient = new JiraIssueClient(
+                configuration.getString(JIRA_INSTANCE_URL),
+                configuration.getString(JIRA_USERNAME),
+                configuration.getString(JIRA_PASSWORD),
+
                 configuration.getString(JIRA_PROJECT_KEY),
-                buildJIRATitle(stream, result),
-                buildDescription(stream, result),
                 configuration.getString(JIRA_LABELS),
                 configuration.getString(JIRA_ISSUE_TYPE),
                 configuration.getString(JIRA_COMPONENTS),
                 configuration.getString(JIRA_PRIORITY),
-                configuration.getString(JIRA_INSTANCE_URL),
-                configuration.getString(JIRA_USERNAME),
-                configuration.getString(JIRA_PASSWORD),
                 configuration.getString(JIRA_MD5_FILTER_QUERY),
                 configuration.getString(JIRA_MD5_CUSTOM_FIELD),
+
+                buildJIRATitle(stream, result),
+                buildJIRADescription(stream, result),
                 buildJIRAGraylogMapping(stream, result),
-                getJIRAMessageDigest(stream, result));
+                buildJIRAMessageDigest(stream, result));
 
         jiraIssueClient.trigger(stream, result);
     }
@@ -279,7 +281,7 @@ public class JiraAlarmCallback implements AlarmCallback {
     /**
      * Generates the MD5 digest of either the message or a number of fields provided
      */
-    private String getJIRAMessageDigest(final Stream stream, final AlertCondition.CheckResult result) {
+    private String buildJIRAMessageDigest(final Stream stream, final AlertCondition.CheckResult result) {
 
         String JiraMessageDigest = "";
 
@@ -408,7 +410,7 @@ public class JiraAlarmCallback implements AlarmCallback {
     /**
      * Build the JIRA description
      */
-    private String buildDescription(final Stream stream, final AlertCondition.CheckResult result) {
+    private String buildJIRADescription(final Stream stream, final AlertCondition.CheckResult result) {
 
         String strMessage = DEFAULT_JIRA_MESSAGE_TEMPLATE;
 

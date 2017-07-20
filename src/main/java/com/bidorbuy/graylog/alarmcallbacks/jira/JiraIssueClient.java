@@ -34,39 +34,54 @@ class JiraIssueClient {
     private final String JIRAPassword;
 
     private final String JIRAProjectKey;
-    private final String JIRATitle;
-    private final String JIRADescription;
     private final String JIRALabels;
     private final String JIRAIssueType;
     private final String JIRAComponents;
     private final String JIRAPriority;
-    private final String JIRAMD5CustomFieldName;
     private final String JIRADuplicateIssueFilterQuery;
+    private final String JIRAMD5CustomFieldName;
 
+    private final String JIRATitle;
+    private final String JIRADescription;
     private final Map<String, String> JIRAGraylogMapping;
     private final String JIRAMessageDigest;
+
     private JiraClient jiraClient = null;
 
+    JiraIssueClient(
+            final String JIRAServerURL,
+            final String JIRAUserName,
+            final String JIRAPassword,
 
-    JiraIssueClient(final String JIRAProjectKey, final String JIRATitle, final String JIRADescription,
-                    final String JIRALabels, final String JIRAIssueType, final String JIRAComponents, final String JIRAPriority,
-                    final String JIRAServerURL, final String JIRAUserName, final String JIRAPassword, final String JIRADuplicateIssueFilterQuery,
-                    final String JIRAMD5CustomFieldName, final Map<String, String> JIRAGraylogMapping, final String JIRAMessageDigest) {
+            final String JIRAProjectKey,
+            final String JIRALabels,
+            final String JIRAIssueType,
+            final String JIRAComponents,
+            final String JIRAPriority,
+            final String JIRADuplicateIssueFilterQuery,
+            final String JIRAMD5CustomFieldName,
+
+            final String JIRATitle,
+            final String JIRADescription,
+            final Map<String, String> JIRAGraylogMapping,
+            final String JIRAMessageDigest) {
+
+        this.JIRAServerURL = JIRAServerURL;
+        this.JIRAUserName = JIRAUserName;
+        this.JIRAPassword = JIRAPassword;
 
         this.JIRAProjectKey = JIRAProjectKey;
-        this.JIRATitle = JIRATitle;
-        this.JIRADescription = JIRADescription;
         this.JIRALabels = JIRALabels;
         this.JIRAIssueType = JIRAIssueType;
         this.JIRAComponents = JIRAComponents;
         this.JIRAPriority = JIRAPriority;
-        this.JIRAServerURL = JIRAServerURL;
-        this.JIRAUserName = JIRAUserName;
-        this.JIRAPassword = JIRAPassword;
+        this.JIRADuplicateIssueFilterQuery = JIRADuplicateIssueFilterQuery;
+        this.JIRAMD5CustomFieldName = JIRAMD5CustomFieldName;
+
+        this.JIRATitle = JIRATitle;
+        this.JIRADescription = JIRADescription;
         this.JIRAGraylogMapping = JIRAGraylogMapping;
         this.JIRAMessageDigest = JIRAMessageDigest;
-        this.JIRAMD5CustomFieldName = JIRAMD5CustomFieldName;
-        this.JIRADuplicateIssueFilterQuery = JIRADuplicateIssueFilterQuery;
     }
 
     void trigger(final Stream stream, final AlertCondition.CheckResult checkResult) throws AlarmCallbackException {
