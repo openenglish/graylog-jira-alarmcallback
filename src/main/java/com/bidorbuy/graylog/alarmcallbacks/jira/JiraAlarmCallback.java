@@ -267,14 +267,14 @@ public class JiraAlarmCallback implements AlarmCallback {
 
         // Check if we have all mandatory keys
         for (String key : CONFIGURATION_KEYS_MANDATORY) {
-            if (!configuration.stringIsSet(key)) {
+            if (!isSetAndNotNullText(configuration, key)) {
                 throw new ConfigurationException(key + " is mandatory and must not be empty.");
             }
         }
 
         // Check if the provided URLs are valid
         for (String key : CONFIGURATION_KEYS_URL_VALIDATION) {
-            if (configuration.stringIsSet(key) && !configuration.getString(key).equals("null")) {
+            if (isSetAndNotNullText(configuration, key)) {
                 try {
                     final URI configURI = new URI(configuration.getString(key));
                     if (!"http".equals(configURI.getScheme()) && !"https".equals(configURI.getScheme())) {
@@ -304,6 +304,10 @@ public class JiraAlarmCallback implements AlarmCallback {
      */
     private static String buildJIRATitle(final Configuration configuration, final Stream stream, final AlertCondition.CheckResult result) {
         LOG.info("Starting buildJIRATitle(...)");
+
+        // e.g. Stream had 2824 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
+        // e.g. Stream had 4359 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
+        // e.g. Stream had 8 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
         LOG.info("result.getResultDescription(): " + result.getResultDescription());
 
         String title = "[Alert] Graylog alert for stream: " + stream.getTitle();
@@ -313,20 +317,34 @@ public class JiraAlarmCallback implements AlarmCallback {
                 // get fields from last message only
                 MessageSummary lastMessage = result.getMatchingMessages().get(0);
 
+                // e.g. wolverine1 lp2-wolverine: org.tempuri.TooLongExceptionFaultFaultMessage: Text too long#012 at sun.refl....java:80)#012 at ...
+                // e.g. wolverine1 lp2-wolverine: 2017-07-21 11:32:11,266 WARN : com.oe.lp2.services.course.DBCourseService - Student 382568 has completed all private classes. Adding completed message
+                // e.g. wolverine2 lp2-wolverine: 2017-07-21 12:03:00,715 WARN : com.oe.lp2.services.person.DBPersonService - fetched image from S3 using URL: http://images.openenglish.com/profile/123/405787.jpg
+                // e.g. wolverine2 lp2-wolverine: 2017-07-21 12:02:25,355 ERROR: com.oe.lp2.services.logging.LoggingServiceImpl - [Client logger: profileService], [time: 2017-07-21T12:02:25.355], [user agent: Mozilla/5.0 ...
+                // e.g. wolverine2 lp2-wolverine: 2017-07-21 12:00:13,224 WARN : org.hibernate.engine.jdbc.spi.SqlExceptionHelper - SQL Error: 0, SQLState: 23505
                 LOG.info("lastMessage.getMessage(): " + lastMessage.getMessage());
 
+                // e.g. Graylog: [LAST_MESSAGE.source] Exception [\0] [\\0] [\1] [\\1] [$1]
+                // e.g. Graylog: [LAST_MESSAGE.source] ERROR [\0] [\\0] [\1] [\\1] [$1]
+                // e.g. Graylog: [LAST_MESSAGE.source] WARN
                 LOG.info("configuration.getString(JIRA_TITLE_TEMPLATE): " + configuration.getString(JIRA_TITLE_TEMPLATE));
-                if (configuration.stringIsSet(JIRA_TITLE_TEMPLATE) && !configuration.getString(JIRA_TITLE_TEMPLATE).equals("null")) {
+
+                if (isSetAndNotNullText(configuration, JIRA_TITLE_TEMPLATE)) {
                     title = configuration.getString(JIRA_TITLE_TEMPLATE);
                 }
 
                 title = replaceStandardPlaceholders(title, lastMessage);
 
-                if (configuration.stringIsSet(MESSAGE_REGEX) && !configuration.getString(MESSAGE_REGEX).equals("null")) {
+                LOG.info("title: " + title);
+
+                LOG.info("MESSAGE_REGEX: " + MESSAGE_REGEX);
+                LOG.info("configuration.getString(MESSAGE_REGEX): " + configuration.getString(MESSAGE_REGEX));
+
+                if (isSetAndNotNullText(configuration, MESSAGE_REGEX)) {
                     Matcher matcher = Pattern.compile(configuration.getString(MESSAGE_REGEX)).matcher(lastMessage.getMessage());
 
                     if (matcher.find()) {
-                        if (configuration.stringIsSet(JIRA_TITLE_TEMPLATE) && !configuration.getString(JIRA_TITLE_TEMPLATE).equals("null")) {
+                        if (isSetAndNotNullText(configuration, JIRA_TITLE_TEMPLATE)) {
                             title = title.replace("[MESSAGE_REGEX]", matcher.group());
                         } else {
                             title = "[Graylog] " + matcher.group();
@@ -342,6 +360,10 @@ public class JiraAlarmCallback implements AlarmCallback {
         LOG.info("Finishing buildJIRATitle(...)");
 
         return title;
+    }
+
+    private static boolean isSetAndNotNullText(Configuration configuration, String fieldName) {
+        return configuration.stringIsSet(fieldName) && !configuration.getString(fieldName).equals("null");
     }
 
     private static String replaceStandardPlaceholders(String returnString, MessageSummary lastMessage) {
@@ -367,9 +389,7 @@ public class JiraAlarmCallback implements AlarmCallback {
 
         String message = DEFAULT_JIRA_MESSAGE_TEMPLATE;
 
-        if (configuration.stringIsSet(JIRA_MESSAGE_TEMPLATE) &&
-                !configuration.getString(JIRA_MESSAGE_TEMPLATE).equals("null") &&
-                !configuration.getString(JIRA_MESSAGE_TEMPLATE).isEmpty()) {
+        if (isSetAndNotNullText(configuration, JIRA_MESSAGE_TEMPLATE)) {
             message = configuration.getString(JIRA_MESSAGE_TEMPLATE);
         }
 
@@ -434,7 +454,7 @@ public class JiraAlarmCallback implements AlarmCallback {
 
         Map<String, String> JIRAFieldMapping = new HashMap<>();
 
-        if (configuration.stringIsSet(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING) && !configuration.getString(JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING).equals("null") && !result.getMatchingMessages().isEmpty()) {
+        if (isSetAndNotNullText(configuration, JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING) && !result.getMatchingMessages().isEmpty()) {
             try {
                 // get fields from last message only
                 MessageSummary lastMessage = result.getMatchingMessages().get(0);
@@ -476,7 +496,7 @@ public class JiraAlarmCallback implements AlarmCallback {
             MessageSummary lastMessage = result.getMatchingMessages().get(0);
 
             // Let's extract the message regex first
-            if (configuration.stringIsSet(MESSAGE_REGEX) && !configuration.getString(MESSAGE_REGEX).equals("null")) {
+            if (isSetAndNotNullText(configuration, MESSAGE_REGEX)) {
                 try {
                     Matcher matcher = Pattern.compile(configuration.getString(MESSAGE_REGEX)).matcher(lastMessage.getMessage());
 
@@ -491,7 +511,7 @@ public class JiraAlarmCallback implements AlarmCallback {
             String jiraMD5Content = "";
 
             // Let's extract the message regex first
-            if (configuration.stringIsSet(JIRA_MD5_HASH_PATTERN) && !configuration.getString(JIRA_MD5_HASH_PATTERN).equals("null")) {
+            if (isSetAndNotNullText(configuration, JIRA_MD5_HASH_PATTERN)) {
 
                 try {
                     jiraMD5Content = configuration.getString(JIRA_MD5_HASH_PATTERN);
