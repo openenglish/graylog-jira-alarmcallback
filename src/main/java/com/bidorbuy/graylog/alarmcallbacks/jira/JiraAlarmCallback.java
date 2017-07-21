@@ -52,6 +52,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
+import javax.annotation.Nullable;
+
 public class JiraAlarmCallback implements AlarmCallback {
 
     // The logger
@@ -322,7 +324,8 @@ public class JiraAlarmCallback implements AlarmCallback {
                 // e.g. wolverine2 lp2-wolverine: 2017-07-21 12:03:00,715 WARN : com.oe.lp2.services.person.DBPersonService - fetched image from S3 using URL: http://images.openenglish.com/profile/123/405787.jpg
                 // e.g. wolverine2 lp2-wolverine: 2017-07-21 12:02:25,355 ERROR: com.oe.lp2.services.logging.LoggingServiceImpl - [Client logger: profileService], [time: 2017-07-21T12:02:25.355], [user agent: Mozilla/5.0 ...
                 // e.g. wolverine2 lp2-wolverine: 2017-07-21 12:00:13,224 WARN : org.hibernate.engine.jdbc.spi.SqlExceptionHelper - SQL Error: 0, SQLState: 23505
-                LOG.info("lastMessage.getMessage(): " + lastMessage.getMessage());
+                String message = lastMessage.getMessage();
+                LOG.info("lastMessage.getMessage(): " + message);
 
                 // e.g. Graylog: [LAST_MESSAGE.source] Exception [\0] [\\0] [\1] [\\1] [$1]
                 // e.g. Graylog: [LAST_MESSAGE.source] ERROR [\0] [\\0] [\1] [\\1] [$1]
@@ -335,21 +338,25 @@ public class JiraAlarmCallback implements AlarmCallback {
 
                 title = replaceStandardPlaceholders(title, lastMessage);
 
+                // e.g. Graylog: wolverine2 Exception [\0] [\\0] [\1] [\\1] [$1]
+                // e.g. Graylog: wolverine1 ERROR [\0] [\\0] [\1] [\\1] [$1]
+                // e.g. Graylog: wolverine2 WARN
                 LOG.info("title: " + title);
 
+                // e.g. message_regex
                 LOG.info("MESSAGE_REGEX: " + MESSAGE_REGEX);
-                LOG.info("configuration.getString(MESSAGE_REGEX): " + configuration.getString(MESSAGE_REGEX));
+
+                // e.g. ([a-zA-Z_.]+(.*Exception[a-zA-z]*\\b).+)
+                // e.g. ([a-zA-Z_.]+(.*Service[a-zA-z]*\\b).+)
+                // e.g. ([a-zA-Z_.]+(.*Servlet[a-zA-z]*\\b).+)
+                String regex = configuration.getString(MESSAGE_REGEX);
+                LOG.info("configuration.getString(MESSAGE_REGEX): " + regex);
 
                 if (isSetAndNotNullText(configuration, MESSAGE_REGEX)) {
-                    Matcher matcher = Pattern.compile(configuration.getString(MESSAGE_REGEX)).matcher(lastMessage.getMessage());
+                    String matcherGroup = getMatcherGroup(message, regex);
 
-                    if (matcher.find()) {
-                        if (isSetAndNotNullText(configuration, JIRA_TITLE_TEMPLATE)) {
-                            title = title.replace("[MESSAGE_REGEX]", matcher.group());
-                        } else {
-                            title = "[Graylog] " + matcher.group();
-                        }
-                    }
+                    LOG.info("matcherGroup: " + matcherGroup);
+                    title = title.replace("[MESSAGE_REGEX]", matcherGroup);
                 }
             }
         } catch (Exception ex) {
@@ -360,6 +367,20 @@ public class JiraAlarmCallback implements AlarmCallback {
         LOG.info("Finishing buildJIRATitle(...)");
 
         return title;
+    }
+
+    @Nullable
+    static String getMatcherGroup(String message, String regex) {
+        Matcher matcher =  Pattern.compile(regex).matcher(message);
+
+        String matcherGroup = null;
+
+        while(matcher.find()) {
+            matcherGroup = matcher.group(1);
+            System.out.println("\t\t" + matcherGroup);
+        }
+
+        return matcherGroup;
     }
 
     private static boolean isSetAndNotNullText(Configuration configuration, String fieldName) {
@@ -404,14 +425,14 @@ public class JiraAlarmCallback implements AlarmCallback {
         }
 
         // replace placeholders
-        message = message.replace("[CALLBACK_DATE]", Tools.iso8601().toString());
-        message = message.replace("[STREAM_ID]", stream.getId());
-        message = message.replace("[STREAM_TITLE]", stream.getTitle());
-        message = message.replace("[STREAM_URL]", buildStreamURL(configuration, stream));
-        message = message.replace("[STREAM_RULES]", buildStreamRules(stream));
-        message = message.replace("[STREAM_RESULT]", result.getResultDescription());
-        message = message.replace("[ALERT_TRIGGERED_AT]", result.getTriggeredAt().toString());
-        message = message.replace("[ALERT_TRIGGERED_CONDITION]", result.getTriggeredCondition().toString());
+        message = message.replace("[CALLBACK_DATE]", Tools.iso8601().toString()); // e.g. 2017-07-21T18:19:44.243Z
+        message = message.replace("[STREAM_ID]", stream.getId()); // e.g. 5968db3189c88913066fc469
+        message = message.replace("[STREAM_TITLE]", stream.getTitle()); // e.g. oe-wolverine WARN
+        message = message.replace("[STREAM_URL]", buildStreamURL(configuration, stream)); // e.g. http://graylog.openenglish.com/streams/5968db3189c88913066fc469/messages?q=*&rangetype=relative&relative=35
+        message = message.replace("[STREAM_RULES]", buildStreamRules(stream)); // e.g source REGEX ^wolverine[0-9]$ message CONTAINS WARN
+        message = message.replace("[STREAM_RESULT]", result.getResultDescription()); // e.g. Stream had 2614 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
+        message = message.replace("[ALERT_TRIGGERED_AT]", result.getTriggeredAt().toString()); // e.g. 2017-07-21T17:09:55.701Z
+        message = message.replace("[ALERT_TRIGGERED_CONDITION]", result.getTriggeredCondition().toString()); // e.g. 32044c6a-7d73-4155-ba04-44323b403002:message_count={time: 5, threshold_type: more, threshold: 0, grace: 1, repeat notifications: true}, stream:={5968db3189c88913066fc469: "oe-wolverine WARN"}
 
         LOG.info("Finishing buildJIRADescription(...)");
 
