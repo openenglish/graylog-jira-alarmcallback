@@ -27,3 +27,6 @@ app/
 
 #MacOS files
 .DS_STORE
+
+#Maven shade plugin generated file
+dependency-reduced-pom.xml
