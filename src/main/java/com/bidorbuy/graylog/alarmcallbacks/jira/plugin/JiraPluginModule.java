@@ -25,8 +25,9 @@
  *
  */
 
-package com.bidorbuy.graylog.alarmcallbacks.jira;
+package com.bidorbuy.graylog.alarmcallbacks.jira.plugin;
 
+import com.bidorbuy.graylog.alarmcallbacks.jira.JiraAlarmCallback;
 import org.graylog2.plugin.PluginConfigBean;
 import org.graylog2.plugin.PluginModule;
 

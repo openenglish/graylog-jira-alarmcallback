@@ -113,11 +113,11 @@ public class JiraAlarmCallback implements AlarmCallback {
      */
     @Override
     public void initialize(final Configuration configuration) throws AlarmCallbackConfigurationException {
-        LOG.info("Starting initialize(...)");
+        LOG.debug("Starting initialize(...)");
 
         this.configuration = configuration;
 
-        LOG.info("Finishing initialize(...)");
+        LOG.debug("Finishing initialize(...)");
     }
 
     /**
@@ -130,7 +130,7 @@ public class JiraAlarmCallback implements AlarmCallback {
      */
     @Override
     public ConfigurationRequest getRequestedConfiguration() {
-        LOG.info("Starting getRequestedConfiguration()");
+        LOG.debug("Starting getRequestedConfiguration()");
 
         final ConfigurationRequest configurationRequest = new ConfigurationRequest();
 
@@ -202,7 +202,7 @@ public class JiraAlarmCallback implements AlarmCallback {
                 JIRA_GRAYLOG_MESSAGE_FIELD_MAPPING, "JIRA/Graylog field mapping", "", "List of comma-separated Graylog/JIRA mapping fields to automatically map Graylog message fields into JIRA.",
                 ConfigurationField.Optional.OPTIONAL));
 
-        LOG.info("Finishing getRequestedConfiguration()");
+        LOG.debug("Finishing getRequestedConfiguration()");
 
         return configurationRequest;
     }
@@ -214,7 +214,7 @@ public class JiraAlarmCallback implements AlarmCallback {
      */
     @Override
     public void call(final Stream stream, final AlertCondition.CheckResult result) throws AlarmCallbackException {
-        LOG.info("Starting call(...)");
+        LOG.debug("Starting call(...)");
 
         JiraIssueClient jiraIssueClient = new JiraIssueClient(
                 configuration.getString(JIRA_INSTANCE_URL),
@@ -236,7 +236,7 @@ public class JiraAlarmCallback implements AlarmCallback {
 
         jiraIssueClient.trigger();
 
-        LOG.info("Finishing call(...)");
+        LOG.debug("Finishing call(...)");
     }
 
     /**
@@ -265,7 +265,7 @@ public class JiraAlarmCallback implements AlarmCallback {
      */
     @Override
     public void checkConfiguration() throws ConfigurationException {
-        LOG.info("Starting checkConfiguration()");
+        LOG.debug("Starting checkConfiguration()");
 
         // Check if we have all mandatory keys
         for (String key : CONFIGURATION_KEYS_MANDATORY) {
@@ -288,7 +288,7 @@ public class JiraAlarmCallback implements AlarmCallback {
             }
         }
 
-        LOG.info("Finishing checkConfiguration()");
+        LOG.debug("Finishing checkConfiguration()");
     }
 
     /**
@@ -305,7 +305,7 @@ public class JiraAlarmCallback implements AlarmCallback {
      * Build the JIRA issue title
      */
     private static String buildJIRATitle(final Configuration configuration, final Stream stream, final AlertCondition.CheckResult result) {
-        LOG.info("Starting buildJIRATitle(...)");
+        LOG.debug("Starting buildJIRATitle(...)");
 
         // e.g. Stream had 2824 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
         // e.g. Stream had 4359 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
@@ -364,7 +364,7 @@ public class JiraAlarmCallback implements AlarmCallback {
             LOG.error("Error in building title: " + ex.getMessage());
         }
 
-        LOG.info("Finishing buildJIRATitle(...)");
+        LOG.debug("Finishing buildJIRATitle(...)");
 
         return title;
     }
@@ -387,26 +387,26 @@ public class JiraAlarmCallback implements AlarmCallback {
         return configuration.stringIsSet(fieldName) && !configuration.getString(fieldName).equals("null");
     }
 
-    private static String replaceStandardPlaceholders(String returnString, MessageSummary lastMessage) {
-        returnString = returnString.replace("[LAST_MESSAGE.message]", lastMessage.getMessage());
-        returnString = returnString.replace("[LAST_MESSAGE.source]", lastMessage.getSource());
+    private static String replaceStandardPlaceholders(String s, MessageSummary messageSummary) {
+        s = s.replace("[LAST_MESSAGE.message]", messageSummary.getMessage());
+        s = s.replace("[LAST_MESSAGE.source]", messageSummary.getSource());
 
         // iterate through all the message fields and replace the template
-        Map<String, Object> lastMessageFields = lastMessage.getFields();
+        Map<String, Object> lastMessageFields = messageSummary.getFields();
         for (Map.Entry<String, Object> arg : lastMessageFields.entrySet()) {
-            returnString = returnString.replace("[LAST_MESSAGE." + arg.getKey() + "]", arg.getValue().toString());
+            s = s.replace("[LAST_MESSAGE." + arg.getKey() + "]", arg.getValue().toString());
         }
 
         // We regex template fields which have not been replaced
-        returnString = returnString.replaceAll("\\[LAST_MESSAGE\\.[^\\]]*\\]", "");
-        return returnString;
+        s = s.replaceAll("\\[LAST_MESSAGE\\.[^\\]]*\\]", "");
+        return s;
     }
 
     /**
      * Build the JIRA description
      */
     private static String buildJIRADescription(final Configuration configuration, final Stream stream, final AlertCondition.CheckResult result) {
-        LOG.info("Starting buildJIRADescription(...)");
+        LOG.debug("Starting buildJIRADescription(...)");
 
         String message = DEFAULT_JIRA_MESSAGE_TEMPLATE;
 
@@ -434,7 +434,7 @@ public class JiraAlarmCallback implements AlarmCallback {
         message = message.replace("[ALERT_TRIGGERED_AT]", result.getTriggeredAt().toString()); // e.g. 2017-07-21T17:09:55.701Z
         message = message.replace("[ALERT_TRIGGERED_CONDITION]", result.getTriggeredCondition().toString()); // e.g. 32044c6a-7d73-4155-ba04-44323b403002:message_count={time: 5, threshold_type: more, threshold: 0, grace: 1, repeat notifications: true}, stream:={5968db3189c88913066fc469: "oe-wolverine WARN"}
 
-        LOG.info("Finishing buildJIRADescription(...)");
+        LOG.debug("Finishing buildJIRADescription(...)");
 
         return "\n\n" + message + "\n\n";
     }
@@ -471,7 +471,7 @@ public class JiraAlarmCallback implements AlarmCallback {
      * Build up a list of JIRA/Graylog field mappings
      */
     private static Map<String, String> buildJIRAGraylogMapping(final Configuration configuration, final AlertCondition.CheckResult result) {
-        LOG.info("Starting buildJIRAGraylogMapping(...)");
+        LOG.debug("Starting buildJIRAGraylogMapping(...)");
 
         Map<String, String> JIRAFieldMapping = new HashMap<>();
 
@@ -498,7 +498,7 @@ public class JiraAlarmCallback implements AlarmCallback {
             }
         }
 
-        LOG.info("Finishing buildJIRAGraylogMapping(...)");
+        LOG.debug("Finishing buildJIRAGraylogMapping(...)");
 
         return JIRAFieldMapping;
     }
@@ -507,7 +507,7 @@ public class JiraAlarmCallback implements AlarmCallback {
      * Generates the MD5 digest of either the message or a number of fields provided
      */
     private static String buildJIRAMessageDigest(final Configuration configuration, final AlertCondition.CheckResult result) {
-        LOG.info("Starting buildJIRAMessageDigest(...)");
+        LOG.debug("Starting buildJIRAMessageDigest(...)");
 
         String jiraMessageDigest = "";
 
@@ -567,7 +567,7 @@ public class JiraAlarmCallback implements AlarmCallback {
             LOG.warn("Skipping JIRA-issue MD5 generation, alarmcallback did not provide a message.");
         }
 
-        LOG.info("Finishing buildJIRAMessageDigest(...)");
+        LOG.debug("Finishing buildJIRAMessageDigest(...)");
 
         return jiraMessageDigest;
     }

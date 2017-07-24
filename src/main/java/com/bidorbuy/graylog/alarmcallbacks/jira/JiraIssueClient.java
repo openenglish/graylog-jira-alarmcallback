@@ -76,7 +76,7 @@ class JiraIssueClient {
     }
 
     void trigger() throws AlarmCallbackException {
-        LOG.info("Starting trigger()");
+        LOG.debug("Starting trigger()");
 
         try {
             BasicCredentials basicCredentials = new BasicCredentials(jiraUserName, jiraPassword);
@@ -91,7 +91,7 @@ class JiraIssueClient {
             throw ex;
         }
 
-        LOG.info("Finishing trigger()");
+        LOG.debug("Finishing trigger()");
     }
 
     /**
