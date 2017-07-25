@@ -34,6 +34,7 @@ import java.security.MessageDigest;
 import java.util.*;
 import java.util.regex.*;
 
+import com.openenglish.util.StringUtil;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.graylog2.plugin.MessageSummary;
@@ -51,8 +52,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-
-import javax.annotation.Nullable;
 
 public class JiraAlarmCallback implements AlarmCallback {
 
@@ -307,9 +306,6 @@ public class JiraAlarmCallback implements AlarmCallback {
     private static String buildJIRATitle(final Configuration configuration, final Stream stream, final AlertCondition.CheckResult result) {
         LOG.debug("Starting buildJIRATitle(...)");
 
-        // e.g. Stream had 2824 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
-        // e.g. Stream had 4359 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
-        // e.g. Stream had 8 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
         LOG.info("result.getResultDescription(): " + result.getResultDescription());
 
         String title = "[Alert] Graylog alert for stream: " + stream.getTitle();
@@ -319,49 +315,36 @@ public class JiraAlarmCallback implements AlarmCallback {
                 // get fields from last message only
                 MessageSummary lastMessage = result.getMatchingMessages().get(0);
 
-                // e.g. wolverine1 lp2-wolverine: org.tempuri.TooLongExceptionFaultFaultMessage: Text too long#012 at sun.refl....java:80)#012 at ...
-                // e.g. wolverine1 lp2-wolverine: 2017-07-21 11:32:11,266 WARN : com.oe.lp2.services.course.DBCourseService - Student 382568 has completed all private classes. Adding completed message
-                // e.g. wolverine2 lp2-wolverine: 2017-07-21 12:03:00,715 WARN : com.oe.lp2.services.person.DBPersonService - fetched image from S3 using URL: http://images.openenglish.com/profile/123/405787.jpg
-                // e.g. wolverine2 lp2-wolverine: 2017-07-21 12:02:25,355 ERROR: com.oe.lp2.services.logging.LoggingServiceImpl - [Client logger: profileService], [time: 2017-07-21T12:02:25.355], [user agent: Mozilla/5.0 ...
-                // e.g. wolverine2 lp2-wolverine: 2017-07-21 12:00:13,224 WARN : org.hibernate.engine.jdbc.spi.SqlExceptionHelper - SQL Error: 0, SQLState: 23505
                 String message = lastMessage.getMessage();
                 LOG.info("lastMessage.getMessage(): " + message);
 
-                // e.g. Graylog: [LAST_MESSAGE.source] Exception [\0] [\\0] [\1] [\\1] [$1]
-                // e.g. Graylog: [LAST_MESSAGE.source] ERROR [\0] [\\0] [\1] [\\1] [$1]
-                // e.g. Graylog: [LAST_MESSAGE.source] WARN
                 LOG.info("configuration.getString(JIRA_TITLE_TEMPLATE): " + configuration.getString(JIRA_TITLE_TEMPLATE));
+
+                LOG.info("title (initial): " + title);
 
                 if (isSetAndNotNullText(configuration, JIRA_TITLE_TEMPLATE)) {
                     title = configuration.getString(JIRA_TITLE_TEMPLATE);
                 }
 
-                title = replaceStandardPlaceholders(title, lastMessage);
+                LOG.info("title (template): " + title);
 
-                // e.g. Graylog: wolverine2 Exception [\0] [\\0] [\1] [\\1] [$1]
-                // e.g. Graylog: wolverine1 ERROR [\0] [\\0] [\1] [\\1] [$1]
-                // e.g. Graylog: wolverine2 WARN
-                LOG.info("title: " + title);
+                title = replaceMessageSummaryPlaceholders(title, lastMessage);
 
-                // e.g. message_regex
+                LOG.info("title (after placeholders): " + title);
+
                 LOG.info("MESSAGE_REGEX: " + MESSAGE_REGEX);
 
-                // e.g. ([a-zA-Z_.]+(.*Exception[a-zA-z]*\\b).+)
-                // e.g. ([a-zA-Z_.]+(.*Service[a-zA-z]*\\b).+)
-                // e.g. ([a-zA-Z_.]+(.*Servlet[a-zA-z]*\\b).+)
                 String regex = configuration.getString(MESSAGE_REGEX);
                 LOG.info("configuration.getString(MESSAGE_REGEX): " + regex);
 
                 if (isSetAndNotNullText(configuration, MESSAGE_REGEX)) {
-                    String matcherGroup = getMatcherGroup(message, regex);
-
-                    LOG.info("matcherGroup: " + matcherGroup);
-                    title = title.replace("[MESSAGE_REGEX]", matcherGroup);
+                    String capturedGroupName = "relevant";
+                    title = StringUtil.captureGroupAndReplace(title, message, regex, capturedGroupName);
                 }
             }
         } catch (Exception ex) {
             // can not do anything - we skip
-            LOG.error("Error in building title: " + ex.getMessage());
+            LOG.info("error-Error in building title: " + ex.getMessage());
         }
 
         LOG.debug("Finishing buildJIRATitle(...)");
@@ -369,25 +352,11 @@ public class JiraAlarmCallback implements AlarmCallback {
         return title;
     }
 
-    @Nullable
-    static String getMatcherGroup(String message, String regex) {
-        Matcher matcher =  Pattern.compile(regex).matcher(message);
-
-        String matcherGroup = null;
-
-        while(matcher.find()) {
-            matcherGroup = matcher.group(1);
-            System.out.println("\t\t" + matcherGroup);
-        }
-
-        return matcherGroup;
-    }
-
     private static boolean isSetAndNotNullText(Configuration configuration, String fieldName) {
         return configuration.stringIsSet(fieldName) && !configuration.getString(fieldName).equals("null");
     }
 
-    private static String replaceStandardPlaceholders(String s, MessageSummary messageSummary) {
+    private static String replaceMessageSummaryPlaceholders(String s, MessageSummary messageSummary) {
         s = s.replace("[LAST_MESSAGE.message]", messageSummary.getMessage());
         s = s.replace("[LAST_MESSAGE.source]", messageSummary.getSource());
 
@@ -399,6 +368,20 @@ public class JiraAlarmCallback implements AlarmCallback {
 
         // We regex template fields which have not been replaced
         s = s.replaceAll("\\[LAST_MESSAGE\\.[^\\]]*\\]", "");
+        return s;
+    }
+
+    private static String replaceStandardPlaceholders(String s, final Configuration configuration, final Stream stream, final AlertCondition.CheckResult result) {
+        // replace placeholders
+        s = s.replace("[CALLBACK_DATE]", Tools.iso8601().toString()); // e.g. 2017-07-21T18:19:44.243Z
+        s = s.replace("[STREAM_ID]", stream.getId()); // e.g. 5968db3189c88913066fc469
+        s = s.replace("[STREAM_TITLE]", stream.getTitle()); // e.g. oe-wolverine WARN
+        s = s.replace("[STREAM_URL]", buildStreamURL(configuration, stream)); // e.g. http://graylog.openenglish.com/streams/5968db3189c88913066fc469/messages?q=*&rangetype=relative&relative=35
+        s = s.replace("[STREAM_RULES]", buildStreamRules(stream)); // e.g source REGEX ^wolverine[0-9]$ message CONTAINS WARN
+        s = s.replace("[STREAM_RESULT]", result.getResultDescription()); // e.g. Stream had 2614 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
+        s = s.replace("[ALERT_TRIGGERED_AT]", result.getTriggeredAt().toString()); // e.g. 2017-07-21T17:09:55.701Z
+        s = s.replace("[ALERT_TRIGGERED_CONDITION]", result.getTriggeredCondition().toString()); // e.g. 32044c6a-7d73-4155-ba04-44323b403002:message_count={time: 5, threshold_type: more, threshold: 0, grace: 1, repeat notifications: true}, stream:={5968db3189c88913066fc469: "oe-wolverine WARN"}
+
         return s;
     }
 
@@ -421,18 +404,10 @@ public class JiraAlarmCallback implements AlarmCallback {
             // get fields from last message only
             MessageSummary lastMessage = result.getMatchingMessages().get(0);
 
-            message = replaceStandardPlaceholders(message, lastMessage);
+            message = replaceMessageSummaryPlaceholders(message, lastMessage);
         }
 
-        // replace placeholders
-        message = message.replace("[CALLBACK_DATE]", Tools.iso8601().toString()); // e.g. 2017-07-21T18:19:44.243Z
-        message = message.replace("[STREAM_ID]", stream.getId()); // e.g. 5968db3189c88913066fc469
-        message = message.replace("[STREAM_TITLE]", stream.getTitle()); // e.g. oe-wolverine WARN
-        message = message.replace("[STREAM_URL]", buildStreamURL(configuration, stream)); // e.g. http://graylog.openenglish.com/streams/5968db3189c88913066fc469/messages?q=*&rangetype=relative&relative=35
-        message = message.replace("[STREAM_RULES]", buildStreamRules(stream)); // e.g source REGEX ^wolverine[0-9]$ message CONTAINS WARN
-        message = message.replace("[STREAM_RESULT]", result.getResultDescription()); // e.g. Stream had 2614 messages in the last 5 minutes with trigger condition more than 0 messages. (Current grace time: 1 minutes)
-        message = message.replace("[ALERT_TRIGGERED_AT]", result.getTriggeredAt().toString()); // e.g. 2017-07-21T17:09:55.701Z
-        message = message.replace("[ALERT_TRIGGERED_CONDITION]", result.getTriggeredCondition().toString()); // e.g. 32044c6a-7d73-4155-ba04-44323b403002:message_count={time: 5, threshold_type: more, threshold: 0, grace: 1, repeat notifications: true}, stream:={5968db3189c88913066fc469: "oe-wolverine WARN"}
+        message = replaceStandardPlaceholders(message, configuration, stream, result);
 
         LOG.debug("Finishing buildJIRADescription(...)");
 
@@ -494,7 +469,7 @@ public class JiraAlarmCallback implements AlarmCallback {
                 }
             } catch (Exception ex) {
                 // can not do anything - we skip
-                LOG.error("Error in generating JIRA/Graylog mapping " + ex.getMessage());
+                LOG.info("error-Error in generating JIRA/Graylog mapping " + ex.getMessage());
             }
         }
 
@@ -509,11 +484,13 @@ public class JiraAlarmCallback implements AlarmCallback {
     private static String buildJIRAMessageDigest(final Configuration configuration, final AlertCondition.CheckResult result) {
         LOG.debug("Starting buildJIRAMessageDigest(...)");
 
+        String jiraMessageMatch = "";
+        String jiraMD5HashPattern = "";
         String jiraMessageDigest = "";
 
         // Get the last message
         if (!result.getMatchingMessages().isEmpty()) {
-            String jiraMessageRegex = "";
+
             MessageSummary lastMessage = result.getMatchingMessages().get(0);
 
             // Let's extract the message regex first
@@ -522,49 +499,47 @@ public class JiraAlarmCallback implements AlarmCallback {
                     Matcher matcher = Pattern.compile(configuration.getString(MESSAGE_REGEX)).matcher(lastMessage.getMessage());
 
                     if (matcher.find()) {
-                        jiraMessageRegex = lastMessage.getMessage().substring(matcher.start());
+                        jiraMessageMatch = lastMessage.getMessage().substring(matcher.start());
                     }
                 } catch (Exception ex) {
-                    LOG.warn("Error in JIRA-issue MD5-MESSAGE_REGEX generation: " + ex.getMessage());
+                    LOG.info("warn-Error in JIRA-issue MD5-MESSAGE_REGEX generation: " + ex.getMessage());
                 }
             }
-
-            String jiraMD5Content = "";
 
             // Let's extract the message regex first
             if (isSetAndNotNullText(configuration, JIRA_MD5_HASH_PATTERN)) {
 
                 try {
-                    jiraMD5Content = configuration.getString(JIRA_MD5_HASH_PATTERN);
+                    jiraMD5HashPattern = configuration.getString(JIRA_MD5_HASH_PATTERN);
 
                     // replace the message-regex place-holder
-                    jiraMD5Content = jiraMD5Content.replace("[MESSAGE_REGEX]", jiraMessageRegex);
+                    jiraMD5HashPattern = jiraMD5HashPattern.replace("[MESSAGE_REGEX]", jiraMessageMatch);
 
-                    jiraMD5Content = replaceStandardPlaceholders(jiraMD5Content, lastMessage);
+                    jiraMD5HashPattern = replaceMessageSummaryPlaceholders(jiraMD5HashPattern, lastMessage);
                 } catch (Exception ex) {
-                    LOG.warn("Error in JIRA-issue MD5-HASH_PATTERN generation: " + ex.getMessage());
+                    LOG.info("warn-Error in JIRA-issue MD5-HASH_PATTERN generation: " + ex.getMessage());
                 }
             }
 
             // We default the extracted message as the template
-            if (StringUtils.isBlank(jiraMD5Content)) {
-                jiraMD5Content = jiraMessageRegex;
+            if (StringUtils.isBlank(jiraMD5HashPattern)) {
+                jiraMD5HashPattern = jiraMessageMatch;
             }
 
             // Create the MD5 from the template
-            if (StringUtils.isNotBlank(jiraMD5Content)) {
+            if (StringUtils.isNotBlank(jiraMD5HashPattern)) {
                 try {
                     MessageDigest m = MessageDigest.getInstance("MD5");
-                    m.update(jiraMD5Content.getBytes(), 0, jiraMD5Content.length());
+                    m.update(jiraMD5HashPattern.getBytes(), 0, jiraMD5HashPattern.length());
                     jiraMessageDigest = new BigInteger(1, m.digest()).toString(16);
                 } catch (Exception ex) {
-                    LOG.warn("Error in JIRA-issue MD5 generation (MD5-string=" + jiraMD5Content + "): " + ex.getMessage());
+                    LOG.info("warn-Error in JIRA-issue MD5 generation (MD5-string=" + jiraMD5HashPattern + "): " + ex.getMessage());
                 }
             } else {
-                LOG.warn("Skipped MD5-hash creation, MD5-string is empty. Check your config.");
+                LOG.info("warn-Skipped MD5-hash creation, MD5-string is empty. Check your config.");
             }
         } else {
-            LOG.warn("Skipping JIRA-issue MD5 generation, alarmcallback did not provide a message.");
+            LOG.info("warn-Skipping JIRA-issue MD5 generation, alarmcallback did not provide a message.");
         }
 
         LOG.debug("Finishing buildJIRAMessageDigest(...)");

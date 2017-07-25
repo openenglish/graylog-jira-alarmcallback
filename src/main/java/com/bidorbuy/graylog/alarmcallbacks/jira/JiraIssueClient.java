@@ -76,7 +76,7 @@ class JiraIssueClient {
     }
 
     void trigger() throws AlarmCallbackException {
-        LOG.debug("Starting trigger()");
+        LOG.info("Starting trigger()");
 
         try {
             BasicCredentials basicCredentials = new BasicCredentials(jiraUserName, jiraPassword);
@@ -87,17 +87,19 @@ class JiraIssueClient {
                 createJIRAIssue(jiraClient);
             }
         } catch (Throwable ex) {
-            LOG.error("Error in trigger function" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
+            LOG.info("error-Error in trigger function" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
             throw ex;
         }
 
-        LOG.debug("Finishing trigger()");
+        LOG.info("Finishing trigger()");
     }
 
     /**
      * Checks if a JIRA issue is duplicated.
      */
     private boolean isDuplicateJIRAIssue(JiraClient jiraClient) throws AlarmCallbackException {
+        LOG.info("Starting isDuplicateJIRAIssue()");
+
         boolean isDuplicate = false;
 
         if (StringUtils.isBlank(jiraMessageDigest)) {
@@ -106,24 +108,31 @@ class JiraIssueClient {
 
         try {
             // Search for duplicate issues
-            Issue.SearchResult srJiraIssues = jiraClient.searchIssues("project = " + jiraProjectKey
-                            + (jiraDuplicateIssueFilterQuery != null && !jiraDuplicateIssueFilterQuery.isEmpty() ? " " + jiraDuplicateIssueFilterQuery + " " : "")
-                            + " AND (" + GRAYLOG_MD5 + " ~ \"" + jiraMessageDigest + "\" OR"
-                            + " description ~ \"" + jiraMessageDigest + "\")",
-                    "id,key,summary", 1);
+            String jql = "project = " + jiraProjectKey
+                    + (jiraDuplicateIssueFilterQuery != null && !jiraDuplicateIssueFilterQuery.isEmpty() ? " " + jiraDuplicateIssueFilterQuery + " " : "")
+                    + " AND (" + GRAYLOG_MD5 + " ~ \"" + jiraMessageDigest + "\" OR" + " description ~ \"" + jiraMessageDigest + "\")";
+
+            LOG.info("jql: " + jql);
+
+            Issue.SearchResult srJiraIssues = jiraClient.searchIssues(jql, "id,key,summary", 1);
 
             if (srJiraIssues != null && srJiraIssues.issues != null && !srJiraIssues.issues.isEmpty()) {
                 isDuplicate = true;
-                LOG.info("There " + (srJiraIssues.issues.size() > 1 ? "are " + srJiraIssues.issues.size() + " issues" : "is one issue") + " with MD5=" + jiraMessageDigest +
+
+                LOG.info("isDuplicate: " + isDuplicate);
+
+                LOG.info("Already exists. There " + (srJiraIssues.issues.size() > 1 ? "are " + srJiraIssues.issues.size() + " issues" : "is one issue") + " with MD5=" + jiraMessageDigest +
                         (StringUtils.isNotBlank(jiraDuplicateIssueFilterQuery) ? " and filter-query='" + jiraDuplicateIssueFilterQuery + "'" : ""));
             } else {
-                LOG.info("No existing open JIRA issue for MD5=" + jiraMessageDigest +
+                LOG.info("Doesn't exist yet. No open JIRA issues with MD5=" + jiraMessageDigest +
                         (StringUtils.isNotBlank(jiraDuplicateIssueFilterQuery) ? " and filter-query='" + jiraDuplicateIssueFilterQuery + "'" : ""));
             }
         } catch (Throwable ex) {
-            LOG.error("Error searching for JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
-            throw new AlarmCallbackException("Failed searching for duplicate issue", ex);
+            LOG.info("error-Error searching for JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
+//            throw new AlarmCallbackException("Failed searching for duplicate issue", ex);
         }
+
+        LOG.info("Finishing isDuplicateJIRAIssue()");
 
         return isDuplicate;
     }
@@ -133,31 +142,32 @@ class JiraIssueClient {
      */
     @SuppressWarnings("serial")
     private void createJIRAIssue(JiraClient jiraClient) throws AlarmCallbackException {
+        LOG.info("Starting createJIRAIssue()");
 
         try {
             List<String> labels = (StringUtils.isNotBlank(jiraLabels) ? Arrays.asList(StringUtils.split(jiraLabels, ',')) : null);
             List<String> components = (StringUtils.isNotBlank(jiraComponents) ? Arrays.asList(StringUtils.split(jiraComponents, ',')) : null);
 
             // We create the base issue and then chain all the required fields
-            FluentCreate fluentIssueCreate = jiraClient.createIssue(jiraProjectKey, jiraIssueType);
+            FluentCreate issueCreator = jiraClient.createIssue(jiraProjectKey, jiraIssueType);
 
             // add JIRA priority
-            fluentIssueCreate.field(Field.PRIORITY, jiraPriority);
+            issueCreator.field(Field.PRIORITY, jiraPriority);
 
             // add assignee - unsure
-            //fluentIssueCreate.field(Field.ASSIGNEE, null);
+            //issueCreator.field(Field.ASSIGNEE, null);
 
             // add summary / title
-            fluentIssueCreate.field(Field.SUMMARY, jiraTitle);
+            issueCreator.field(Field.SUMMARY, jiraTitle);
 
             // add labels
             if (labels != null && !labels.isEmpty()) {
-                fluentIssueCreate.field(Field.LABELS, labels);
+                issueCreator.field(Field.LABELS, labels);
             }
 
             // add components
             if (components != null && !components.isEmpty()) {
-                fluentIssueCreate.field(Field.COMPONENTS, components);
+                issueCreator.field(Field.COMPONENTS, components);
             }
 
             String strJIRADescription = jiraDescription;
@@ -166,23 +176,25 @@ class JiraIssueClient {
             if (StringUtils.isNotBlank(jiraMessageDigest)) {
                 String md5Field = jiraMD5CustomFieldName;
 
+                LOG.info("md5Field #1: " + md5Field);
                 // if we do not have a configured custom-field, we will try and find it from meta-data
                 // this requires that the JIRA user has edit-permissions
                 if (StringUtils.isBlank(md5Field)) {
                     md5Field = getJIRACustomMD5Field(jiraClient);
+                    LOG.info("md5Field #2: " + md5Field);
                 }
 
                 if (StringUtils.isNotBlank(md5Field)) {
-                    fluentIssueCreate.field(md5Field, jiraMessageDigest);
+                    issueCreator.field(md5Field, jiraMessageDigest);
                 } else {
                     // If there is no MD5 field defined, we inline the MD5-digest into the JIRA description
                     strJIRADescription = "\n\n" + GRAYLOG_MD5 + "=" + jiraMessageDigest + "\n\n";
-                    LOG.warn("It is more efficient to configure '" + JiraAlarmCallback.JIRA_MD5_CUSTOM_FIELD + "' for MD5-hashing instead of embedding the hash in the JIRA description!");
+                    LOG.info("warn-It is more efficient to configure '" + JiraAlarmCallback.JIRA_MD5_CUSTOM_FIELD + "' for MD5-hashing instead of embedding the hash in the JIRA description!");
                 }
             }
 
             // add description - we add this last, as the description could have been modified due to the MD5 inlining above
-            fluentIssueCreate.field(Field.DESCRIPTION, strJIRADescription);
+            issueCreator.field(Field.DESCRIPTION, strJIRADescription);
 
             // append auto-mapped fields
             if (jiraGraylogMapping != null && !jiraGraylogMapping.isEmpty()) {
@@ -198,19 +210,21 @@ class JiraIssueClient {
                         }
 
                         LOG.info("JIRA/Graylog automap - JIRA-key=" + jiraFieldName + ", value=" + jiraFiedValue.toString());
-                        fluentIssueCreate.field(jiraFieldName, jiraFiedValue);
+                        issueCreator.field(jiraFieldName, jiraFiedValue);
                     }
                 }
             }
 
             // finally create the issue
-            Issue newIssue = fluentIssueCreate.execute();
+            Issue newIssue = issueCreator.execute();
 
             LOG.info("Created new issue " + newIssue.getKey() + " for project " + jiraProjectKey);
         } catch (Throwable ex) {
-            LOG.error("Error creating JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
-            throw new AlarmCallbackException("Failed creating new issue", ex);
+            LOG.info("error-Error creating JIRA issue=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
+//            throw new AlarmCallbackException("Failed creating new issue", ex);
         }
+
+        LOG.info("Finishing createJIRAIssue()");
     }
 
     /**
@@ -218,9 +232,11 @@ class JiraIssueClient {
      */
     @SuppressWarnings("unchecked")
     private String getJIRACustomMD5Field(JiraClient jiraClient) throws AlarmCallbackException {
+        LOG.info("Starting getJIRACustomMD5Field()");
+
         String strJIRACustomMD5Field = null;
 
-        LOG.warn("It is more efficient to configure '" + JiraAlarmCallback.JIRA_MD5_CUSTOM_FIELD + "' for MD5-hashing.");
+        LOG.info("warn-It is more efficient to configure '" + JiraAlarmCallback.JIRA_MD5_CUSTOM_FIELD + "' for MD5-hashing.");
 
         try {
             JSONObject customfields = Issue.getCreateMetadata(jiraClient.getRestClient(), jiraProjectKey, jiraIssueType);
@@ -237,9 +253,11 @@ class JiraIssueClient {
                 }
             }
         } catch (JiraException ex) {
-            LOG.error("Error getting JIRA custom MD5 field=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
-            throw new AlarmCallbackException("Failed retrieving MD5-field", ex);
+            LOG.info("error-Error getting JIRA custom MD5 field=" + ex.getMessage() + (ex.getCause() != null ? ", Cause=" + ex.getCause().getMessage() : ""), ex);
+//            throw new AlarmCallbackException("Failed retrieving MD5-field", ex);
         }
+
+        LOG.info("Finishing getJIRACustomMD5Field()");
 
         return strJIRACustomMD5Field;
     }
