@@ -1,15 +1,14 @@
 package com.openenglish.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class StringUtil {
-
-    private static final Logger LOG = LoggerFactory.getLogger(StringUtil.class);
 
     @Nullable
     public static String getCapturedGroup(String container, String regex, String capturedGroupName) {
@@ -19,10 +18,14 @@ public abstract class StringUtil {
         Matcher matcher =  Pattern.compile(regex).matcher(container);
 
         if(matcher.find()) {
-            return matcher.group(capturedGroupName);
-        } else {
-            return null;
+            try {
+                return matcher.group(capturedGroupName);
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
         }
+
+        return null;
     }
 
     @Nullable
@@ -34,12 +37,31 @@ public abstract class StringUtil {
     }
 
     @Nullable
-    public static String captureGroupAndReplace(String finalContainer, String initialContainer, String regex, String captureGroupName) {
-        String capturedGroup = getCapturedGroup(initialContainer, regex, captureGroupName);
-        return replace(finalContainer, "${" + captureGroupName + "}", capturedGroup);
+    public static String captureGroupAndReplace(String finalContainer, String initialContainer, String regex) {
+        String finalString = finalContainer;
+
+        for(String name : getPlaceholderNames(finalContainer)) {
+            String capturedGroup = getCapturedGroup(initialContainer, regex, name);
+            if(capturedGroup != null)
+                finalString = replace(finalString, "${" + name + "}", capturedGroup);
+        }
+
+        return finalString;
     }
 
     @Nullable
-    public static String[] getPlaceholderNames
+    public static List<String> getPlaceholderNames(String container) {
+        String regex = "\\$\\{([a-zA-Z0-9-_]+)\\}";
+
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(container);
+
+        Set<String> names = new HashSet<>();
+        while(matcher.find()) {
+            names.add(matcher.group(1));
+        }
+
+        return new ArrayList<>(names);
+    }
 
 }
